@@ -1,0 +1,2 @@
+Target dependency graph (1 target)
+Target 'Sale_Alert_Buddy' in project 'Sale_Alert_Buddy' (no dependencies)

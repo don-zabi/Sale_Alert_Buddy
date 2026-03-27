@@ -1,0 +1,93 @@
+{
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Models/Enums/ExtractMethod.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ExtractMethod.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ExtractMethod.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ExtractMethod.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ExtractMethod.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ExtractMethod.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Models/Enums/FetchErrorType.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchErrorType.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchErrorType.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchErrorType.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchErrorType.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchErrorType.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Models/Enums/FetchOutcome.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchOutcome.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchOutcome.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchOutcome.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchOutcome.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchOutcome.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Models/Enums/ItemStatus.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ItemStatus.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ItemStatus.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ItemStatus.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ItemStatus.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ItemStatus.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Models/Enums/PauseReason.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PauseReason.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PauseReason.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PauseReason.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PauseReason.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PauseReason.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Models/Extensions/FetchLog+CoreData.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchLog+CoreData.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchLog+CoreData.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchLog+CoreData.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchLog+CoreData.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/FetchLog+CoreData.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Models/Extensions/TrackingItem+CoreData.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/TrackingItem+CoreData.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/TrackingItem+CoreData.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/TrackingItem+CoreData.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/TrackingItem+CoreData.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/TrackingItem+CoreData.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Models/PriceResult.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceResult.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceResult.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceResult.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceResult.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceResult.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Services/PriceExtraction/DataAttributeExtractor.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DataAttributeExtractor.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DataAttributeExtractor.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DataAttributeExtractor.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DataAttributeExtractor.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DataAttributeExtractor.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Services/PriceExtraction/HTMLPatternExtractor.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/HTMLPatternExtractor.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/HTMLPatternExtractor.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/HTMLPatternExtractor.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/HTMLPatternExtractor.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/HTMLPatternExtractor.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Services/PriceExtraction/MetaTagExtractor.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/MetaTagExtractor.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/MetaTagExtractor.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/MetaTagExtractor.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/MetaTagExtractor.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/MetaTagExtractor.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Services/PriceExtraction/PriceCurrencyParser.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceCurrencyParser.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceCurrencyParser.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceCurrencyParser.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceCurrencyParser.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceCurrencyParser.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Services/PriceExtraction/PriceExtractionPipeline.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceExtractionPipeline.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceExtractionPipeline.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceExtractionPipeline.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceExtractionPipeline.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/PriceExtractionPipeline.swiftdeps"
+  }
+}

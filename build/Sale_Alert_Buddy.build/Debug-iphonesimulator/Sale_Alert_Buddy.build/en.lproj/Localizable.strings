@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>action.addItem</key>
+	<string>Add Item</string>
+	<key>action.cancel</key>
+	<string>Cancel</string>
+	<key>action.delete</key>
+	<string>Delete</string>
+	<key>action.ok</key>
+	<string>OK</string>
+	<key>action.pause</key>
+	<string>Pause</string>
+	<key>action.resume</key>
+	<string>Resume</string>
+	<key>addItem.error.fetch</key>
+	<string>Failed to check existing items.</string>
+	<key>addItem.error.planLimit</key>
+	<string>Free plan limit reached (2 items). Upgrade to track more products.</string>
+	<key>addItem.error.title</key>
+	<string>Registration Failed</string>
+	<key>addItem.memo.placeholder</key>
+	<string>Optional note…</string>
+	<key>addItem.pasteURL</key>
+	<string>Paste from Clipboard</string>
+	<key>addItem.register</key>
+	<string>Register &amp; Check</string>
+	<key>addItem.registering</key>
+	<string>Checking price…</string>
+	<key>addItem.section.notes</key>
+	<string>Notes (optional)</string>
+	<key>addItem.section.tags</key>
+	<string>Tags (optional)</string>
+	<key>addItem.section.url</key>
+	<string>Product URL</string>
+	<key>addItem.tags.hint</key>
+	<string>Separate tags with commas.</string>
+	<key>addItem.tags.placeholder</key>
+	<string>tag1, tag2</string>
+	<key>addItem.title</key>
+	<string>Add Item</string>
+	<key>addItem.url.placeholder</key>
+	<string>https://</string>
+	<key>app.title</key>
+	<string>Sale Alert Buddy</string>
+	<key>detail.action.checkNow</key>
+	<string>Check Now</string>
+	<key>detail.action.openSafari</key>
+	<string>Open in Safari</string>
+	<key>detail.action.pause</key>
+	<string>Pause Monitoring</string>
+	<key>detail.action.resume</key>
+	<string>Resume Monitoring</string>
+	<key>detail.error.title</key>
+	<string>Error</string>
+	<key>detail.lastUpdated</key>
+	<string>Last updated %@</string>
+	<key>detail.noChecks</key>
+	<string>No checks yet.</string>
+	<key>detail.notifyThreshold</key>
+	<string>Notify when ≥ %@ off</string>
+	<key>detail.section.notification</key>
+	<string>Notification</string>
+	<key>detail.section.price</key>
+	<string>Price</string>
+	<key>detail.section.recentChecks</key>
+	<string>Recent Checks</string>
+	<key>detail.section.status</key>
+	<string>Status</string>
+	<key>languagePicker.chinese</key>
+	<string>中文（简体）</string>
+	<key>languagePicker.confirm</key>
+	<string>Continue</string>
+	<key>languagePicker.japanese</key>
+	<string>日本語</string>
+	<key>languagePicker.subtitle</key>
+	<string>Select your preferred language</string>
+	<key>languagePicker.title</key>
+	<string>Choose Language</string>
+	<key>list.empty.description</key>
+	<string>Tap + to add a product URL.</string>
+	<key>list.empty.title</key>
+	<string>No items yet</string>
+	<key>settings.about.build</key>
+	<string>Build</string>
+	<key>settings.about.version</key>
+	<string>Version</string>
+	<key>settings.backgroundRefresh.info</key>
+	<string>Sale Alert Buddy checks prices when you open the app. Background refresh is best-effort and depends on iOS system conditions.</string>
+	<key>settings.notifications.authorized</key>
+	<string>Enabled</string>
+	<key>settings.notifications.denied</key>
+	<string>Disabled</string>
+	<key>settings.notifications.ephemeral</key>
+	<string>Ephemeral</string>
+	<key>settings.notifications.notDetermined</key>
+	<string>Not set</string>
+	<key>settings.notifications.openSettings</key>
+	<string>Open Notification Settings</string>
+	<key>settings.notifications.provisional</key>
+	<string>Provisional</string>
+	<key>settings.notifications.status</key>
+	<string>Status</string>
+	<key>settings.notifications.unknown</key>
+	<string>Unknown</string>
+	<key>settings.plan.current</key>
+	<string>Current Plan</string>
+	<key>settings.plan.free</key>
+	<string>Free (2 items)</string>
+	<key>settings.plan.upgradeNote</key>
+	<string>Upgrade coming soon — track up to 50 items.</string>
+	<key>settings.section.about</key>
+	<string>About</string>
+	<key>settings.section.backgroundRefresh</key>
+	<string>Background Refresh</string>
+	<key>settings.section.notifications</key>
+	<string>Notifications</string>
+	<key>settings.section.plan</key>
+	<string>Plan</string>
+	<key>settings.title</key>
+	<string>Settings</string>
+	<key>time.never</key>
+	<string>Never</string>
+</dict>
+</plist>

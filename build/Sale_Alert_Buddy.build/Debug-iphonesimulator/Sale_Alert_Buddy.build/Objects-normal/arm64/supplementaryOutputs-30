@@ -1,0 +1,37 @@
+{
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/ViewModels/ItemListViewModel.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemListViewModel.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemListViewModel.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemListViewModel.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemListViewModel.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemListViewModel.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Views/AddItemSheet.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/AddItemSheet.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/AddItemSheet.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/AddItemSheet.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/AddItemSheet.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/AddItemSheet.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Views/ItemCardView.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemCardView.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemCardView.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemCardView.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemCardView.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemCardView.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Views/ItemDetailView.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemDetailView.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemDetailView.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemDetailView.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemDetailView.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemDetailView.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/Views/ItemListView.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemListView.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemListView.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemListView.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemListView.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/arm64/ItemListView.swiftdeps"
+  }
+}

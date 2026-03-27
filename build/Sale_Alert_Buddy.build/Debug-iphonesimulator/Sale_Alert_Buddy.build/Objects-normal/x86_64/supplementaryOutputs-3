@@ -1,0 +1,86 @@
+{
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/SwiftSoup/BooleanAttribute.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/BooleanAttribute.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/BooleanAttribute.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/BooleanAttribute.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/BooleanAttribute.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/BooleanAttribute.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/SwiftSoup/ByteSlice.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ByteSlice.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ByteSlice.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ByteSlice.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ByteSlice.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/ByteSlice.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/SwiftSoup/CharacterExt.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CharacterExt.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CharacterExt.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CharacterExt.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CharacterExt.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CharacterExt.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/SwiftSoup/CharacterReader.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CharacterReader.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CharacterReader.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CharacterReader.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CharacterReader.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CharacterReader.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/SwiftSoup/Cleaner.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Cleaner.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Cleaner.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Cleaner.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Cleaner.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Cleaner.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/SwiftSoup/Collector.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Collector.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Collector.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Collector.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Collector.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Collector.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/SwiftSoup/CombiningEvaluator.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CombiningEvaluator.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CombiningEvaluator.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CombiningEvaluator.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CombiningEvaluator.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CombiningEvaluator.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/SwiftSoup/Comment.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Comment.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Comment.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Comment.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Comment.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Comment.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/SwiftSoup/CssSelector.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CssSelector.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CssSelector.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CssSelector.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CssSelector.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/CssSelector.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/SwiftSoup/DataNode.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DataNode.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DataNode.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DataNode.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DataNode.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DataNode.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/SwiftSoup/DebugTrace.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DebugTrace.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DebugTrace.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DebugTrace.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DebugTrace.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/DebugTrace.swiftdeps"
+  },
+  "/Users/don/Documents/GitHub/Sale_Alert_Buddy/Sale_Alert_Buddy/SwiftSoup/Document.swift" : {
+    "const-values" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Document.swiftconstvalues",
+    "dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Document.d",
+    "diagnostics" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Document.dia",
+    "object" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Document.o",
+    "swift-dependencies" : "/Users/don/Documents/GitHub/Sale_Alert_Buddy/build/Sale_Alert_Buddy.build/Debug-iphonesimulator/Sale_Alert_Buddy.build/Objects-normal/x86_64/Document.swiftdeps"
+  }
+}

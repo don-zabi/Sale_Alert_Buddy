@@ -1,9 +1,47 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="1" systemVersion="11A491" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="false" userDefinedModelVersionIdentifier="">
-    <entity name="Item" representedClassName="Item" syncable="YES" codeGenerationType="class">
-        <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    <entity name="TrackingItem" representedClassName="TrackingItem" syncable="YES" codeGenerationType="none">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="originalUrl" attributeType="String"/>
+        <attribute name="currentUrl" attributeType="String"/>
+        <attribute name="resolvedUrl" optional="YES" attributeType="String"/>
+        <attribute name="domain" attributeType="String" defaultValueString=""/>
+        <attribute name="status" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="pauseReason" optional="YES" attributeType="Integer 16" usesScalarValueType="YES"/>
+        <attribute name="baselinePrice" attributeType="Decimal" defaultValueString="0.0"/>
+        <attribute name="baselineCurrency" attributeType="String" defaultValueString=""/>
+        <attribute name="latestPrice" optional="YES" attributeType="Decimal"/>
+        <attribute name="latestCurrency" optional="YES" attributeType="String"/>
+        <attribute name="notificationThreshold" attributeType="Double" defaultValueString="0.01" usesScalarValueType="YES"/>
+        <attribute name="lastCheckedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastSuccessAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="failCountConsecutive" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lastErrorType" optional="YES" attributeType="Integer 16" usesScalarValueType="YES"/>
+        <attribute name="lastHttpStatus" optional="YES" attributeType="Integer 16" usesScalarValueType="YES"/>
+        <attribute name="productTitle" optional="YES" attributeType="String"/>
+        <attribute name="productIdHints" optional="YES" attributeType="String"/>
+        <attribute name="imageUrl" optional="YES" attributeType="String"/>
+        <attribute name="memo" optional="YES" attributeType="String"/>
+        <attribute name="tags" optional="YES" attributeType="String"/>
+        <attribute name="lastNotifiedPrice" optional="YES" attributeType="Decimal"/>
+        <relationship name="fetchLogs" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="FetchLog" inverseName="trackingItem" inverseEntity="FetchLog"/>
+    </entity>
+    <entity name="FetchLog" representedClassName="FetchLog" syncable="YES" codeGenerationType="none">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="trackingItemId" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="outcome" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="httpStatus" optional="YES" attributeType="Integer 16" usesScalarValueType="YES"/>
+        <attribute name="errorType" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="extractMethod" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="durationMs" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="note" optional="YES" attributeType="String"/>
+        <relationship name="trackingItem" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TrackingItem" inverseName="fetchLogs" inverseEntity="TrackingItem"/>
     </entity>
     <elements>
-        <element name="Item" positionX="-63" positionY="-18" width="128" height="44"/>
+        <element name="TrackingItem" positionX="-200" positionY="-100" width="128" height="494"/>
+        <element name="FetchLog" positionX="100" positionY="-100" width="128" height="209"/>
     </elements>
 </model>
