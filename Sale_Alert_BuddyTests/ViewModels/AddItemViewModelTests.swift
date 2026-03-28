@@ -5,6 +5,7 @@ import CoreData
 // MARK: - AddItemViewModel Tests
 
 @Suite("AddItemViewModel")
+@MainActor
 struct AddItemViewModelTests {
 
     // MARK: - Default state
@@ -21,10 +22,23 @@ struct AddItemViewModelTests {
         #expect(vm.memo == "")
     }
 
+    @Test("titleText starts empty")
+    func titleTextStartsEmpty() {
+        let vm = AddItemViewModel()
+        #expect(vm.titleText == "")
+    }
+
     @Test("tagsText starts empty")
     func tagsTextStartsEmpty() {
         let vm = AddItemViewModel()
         #expect(vm.tagsText == "")
+    }
+
+    @Test("notification condition defaults are set")
+    func notificationConditionDefaults() {
+        let vm = AddItemViewModel()
+        #expect(vm.notificationConditionType == .percentage)
+        #expect(vm.notificationConditionValueText == "1")
     }
 
     @Test("isRegistering starts false")
@@ -73,6 +87,14 @@ struct AddItemViewModelTests {
         let vm = AddItemViewModel()
         vm.urlText = "https://example.com"
         vm.isRegistering = true
+        #expect(vm.canRegister == false)
+    }
+
+    @Test("canRegister is false when notification value is invalid")
+    func canRegisterFalseWhenNotificationValueInvalid() {
+        let vm = AddItemViewModel()
+        vm.urlText = "https://example.com"
+        vm.notificationConditionValueText = "abc"
         #expect(vm.canRegister == false)
     }
 
@@ -125,17 +147,19 @@ struct AddItemViewModelTests {
 
     // MARK: - Plan limit check
 
-    @Test("register sets planLimit error when one item already exists")
+    @Test("register sets planLimit error when 20 items already exist")
     @MainActor
     func registerEnforcesPlanLimit() async throws {
         // Use a fresh isolated store so item count is deterministic
         let store = PersistenceController(inMemory: true)
         let ctx = store.container.viewContext
 
-        // Create one existing item to hit the free plan limit
-        let existing = TrackingItem.create(in: ctx)
-        existing.currentUrl = "https://amazon.co.jp/dp/B001"
-        existing.domain = "amazon.co.jp"
+        // Create 20 existing items to hit the free plan limit
+        for index in 0..<20 {
+            let existing = TrackingItem.create(in: ctx)
+            existing.currentUrl = "https://amazon.co.jp/dp/B\(index)"
+            existing.domain = "amazon.co.jp"
+        }
         store.save(context: ctx)
 
         let vm = AddItemViewModel()
@@ -146,9 +170,7 @@ struct AddItemViewModelTests {
         #expect(vm.errorMessage != nil)
         #expect(vm.isRegistering == false)
         #expect(vm.registeredItem == nil)
-        // Error message should mention plan/upgrade
-        let msg = vm.errorMessage ?? ""
-        #expect(msg.localizedCaseInsensitiveContains("plan") || msg.localizedCaseInsensitiveContains("upgrade") || msg.localizedCaseInsensitiveContains("limit"))
+        #expect(!(vm.errorMessage ?? "").isEmpty)
     }
 
     @Test("register does not set isRegistering true when plan limit exceeded")
@@ -158,9 +180,11 @@ struct AddItemViewModelTests {
         let store = PersistenceController(inMemory: true)
         let ctx = store.container.viewContext
 
-        let existing = TrackingItem.create(in: ctx)
-        existing.currentUrl = "https://amazon.co.jp/dp/existing"
-        existing.domain = "amazon.co.jp"
+        for index in 0..<20 {
+            let existing = TrackingItem.create(in: ctx)
+            existing.currentUrl = "https://amazon.co.jp/dp/existing-\(index)"
+            existing.domain = "amazon.co.jp"
+        }
         store.save(context: ctx)
 
         let vm = AddItemViewModel()

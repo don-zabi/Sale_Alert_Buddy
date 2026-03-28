@@ -15,6 +15,8 @@
         <attribute name="latestPrice" optional="YES" attributeType="Decimal"/>
         <attribute name="latestCurrency" optional="YES" attributeType="String"/>
         <attribute name="notificationThreshold" attributeType="Double" defaultValueString="0.01" usesScalarValueType="YES"/>
+        <attribute name="notificationConditionType" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="notificationConditionValue" attributeType="Double" defaultValueString="1.0" usesScalarValueType="YES"/>
         <attribute name="lastCheckedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="lastSuccessAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="failCountConsecutive" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>

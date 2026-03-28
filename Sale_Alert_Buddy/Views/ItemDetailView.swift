@@ -11,12 +11,18 @@ struct ItemDetailView: View {
 
     let item: TrackingItem
 
-    @AppStorage("selectedLanguage") private var selectedLanguage = "ja"
+    @AppStorage("selectedLanguage") private var selectedLanguage = "en"
     @State private var viewModel: ItemDetailViewModel
+    @State private var selectedNotificationType: NotificationConditionType
+    @State private var notificationValueText: String
 
     init(item: TrackingItem) {
         self.item = item
         _viewModel = State(initialValue: ItemDetailViewModel(item: item))
+        _selectedNotificationType = State(initialValue: item.itemNotificationConditionType)
+        let value = item.itemNotificationConditionValue
+        let valueText = value.rounded() == value ? String(Int(value)) : String(format: "%.2f", value)
+        _notificationValueText = State(initialValue: valueText)
     }
 
     var body: some View {
@@ -129,17 +135,46 @@ struct ItemDetailView: View {
     // MARK: - Notification Threshold
 
     private var notificationSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(String(localized: "detail.section.notification", defaultValue: "Notification"))
                 .font(.headline)
 
-            let thresholdPct = String(format: "%.0f%%", item.notificationThreshold * 100)
-            Text(verbatim: String(
-                format: String(localized: "detail.notifyThreshold", defaultValue: "Notify when ≥ %@ off"),
-                thresholdPct
-            ))
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+            Text(verbatim: viewModel.notificationConditionDescription)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Picker(
+                String(localized: "detail.notifyThreshold.type", defaultValue: "Condition Type"),
+                selection: $selectedNotificationType
+            ) {
+                ForEach(NotificationConditionType.allCases) { condition in
+                    Text(condition.displayName).tag(condition)
+                }
+            }
+            .pickerStyle(.menu)
+
+            HStack {
+                TextField(
+                    String(localized: "detail.notifyThreshold.value", defaultValue: "Value"),
+                    text: $notificationValueText
+                )
+                .keyboardType(.decimalPad)
+
+                Text(notificationUnitLabel(for: selectedNotificationType))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button(String(localized: "detail.notifyThreshold.save", defaultValue: "Save Notification Rule")) {
+                viewModel.updateNotificationCondition(
+                    type: selectedNotificationType,
+                    valueText: notificationValueText,
+                    context: viewContext
+                )
+                selectedNotificationType = viewModel.notificationConditionType
+                notificationValueText = viewModel.notificationConditionValueText
+            }
+            .buttonStyle(.bordered)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -316,6 +351,15 @@ struct ItemDetailView: View {
         formatter.unitsStyle = .abbreviated
         formatter.locale = Locale(identifier: selectedLanguage)
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    private func notificationUnitLabel(for type: NotificationConditionType) -> LocalizedStringKey {
+        switch type {
+        case .percentage:
+            return "%"
+        case .amount, .targetPrice:
+            return "currency.jpy.unit"
+        }
     }
 }
 

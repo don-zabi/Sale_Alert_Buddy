@@ -66,7 +66,7 @@ struct SettingsView: View {
             HStack {
                 Text(String(localized: "settings.plan.current", defaultValue: "Current Plan"))
                 Spacer()
-                Text(String(localized: "settings.plan.free", defaultValue: "Free (2 items)"))
+                Text(String(localized: "settings.plan.free", defaultValue: "Free (20 items)"))
                     .foregroundStyle(.secondary)
             }
             Text(String(

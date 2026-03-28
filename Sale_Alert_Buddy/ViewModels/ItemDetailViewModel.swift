@@ -49,6 +49,42 @@ final class ItemDetailViewModel {
         return String(format: "%.1f%%", pct)
     }
 
+    var notificationConditionType: NotificationConditionType {
+        item.itemNotificationConditionType
+    }
+
+    var notificationConditionValueText: String {
+        let value = item.itemNotificationConditionValue
+        if value.rounded() == value {
+            return String(Int(value))
+        }
+        return String(format: "%.2f", value)
+    }
+
+    var notificationConditionDescription: String {
+        let value = item.itemNotificationConditionValue
+        switch item.itemNotificationConditionType {
+        case .percentage:
+            let text = value.rounded() == value ? String(Int(value)) : String(format: "%.2f", value)
+            return String(
+                format: String(localized: "detail.notifyThreshold.percent", defaultValue: "Notify when drop is %@%% or more"),
+                text
+            )
+        case .amount:
+            let formatted = NotificationService.formatPrice(Decimal(value), currency: item.baselineCurrency)
+            return String(
+                format: String(localized: "detail.notifyThreshold.amount", defaultValue: "Notify when drop amount is %@ or more"),
+                formatted
+            )
+        case .targetPrice:
+            let formatted = NotificationService.formatPrice(Decimal(value), currency: item.baselineCurrency)
+            return String(
+                format: String(localized: "detail.notifyThreshold.target", defaultValue: "Notify when price is %@ or below"),
+                formatted
+            )
+        }
+    }
+
     // MARK: - Status Description
 
     /// Human-readable description of the item's current status.
@@ -94,6 +130,33 @@ final class ItemDetailViewModel {
         item.itemStatus = .ok
         item.itemPauseReason = nil
         item.failCountConsecutive = 0
+        PersistenceController.shared.save(context: context)
+    }
+
+    func updateNotificationCondition(
+        type: NotificationConditionType,
+        valueText: String,
+        context: NSManagedObjectContext
+    ) {
+        let normalized = valueText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ",", with: ".")
+
+        guard let value = Double(normalized), value > 0 else {
+            errorMessage = String(
+                localized: "detail.notifyThreshold.invalidValue",
+                defaultValue: "Enter a valid number greater than 0."
+            )
+            return
+        }
+
+        item.itemNotificationConditionType = type
+        item.itemNotificationConditionValue = value
+
+        if type == .percentage {
+            item.notificationThreshold = value / 100
+        }
+
         PersistenceController.shared.save(context: context)
     }
 

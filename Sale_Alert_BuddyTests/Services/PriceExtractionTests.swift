@@ -305,6 +305,21 @@ struct MetaTagExtractorTests {
         #expect(results.first!.price == Decimal(2980))
         #expect(results.first!.currency == "JPY")
     }
+
+    @Test func extractsFromMetaNameAttributes() throws {
+        let html = """
+        <html><head>
+        <meta name="product:price:amount" content="87000">
+        <meta name="product:price:currency" content="JPY">
+        </head><body></body></html>
+        """
+        let doc = makeDocument(html)
+        let extractor = MetaTagExtractor()
+        let results = extractor.extract(from: doc)
+        #expect(!results.isEmpty)
+        #expect(results.first!.price == Decimal(87000))
+        #expect(results.first!.currency == "JPY")
+    }
 }
 
 // MARK: - DataAttributeExtractor Tests

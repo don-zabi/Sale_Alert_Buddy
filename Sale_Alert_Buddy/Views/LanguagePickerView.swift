@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Full-screen language selection shown on first launch.
 ///
-/// The user picks Japanese or Chinese Simplified. The selection is stored in
+/// The user picks English, Japanese, or Chinese Simplified. The selection is stored in
 /// `@AppStorage("selectedLanguage")` and applied via `.environment(\.locale, ...)`
 /// in `Sale_Alert_BuddyApp`. Once confirmed, `hasSelectedLanguage` is set to `true`
 /// and this screen is never shown again.
@@ -12,7 +12,7 @@ import SwiftUI
 /// instant preview of the chosen language before confirming.
 struct LanguagePickerView: View {
 
-    @AppStorage("selectedLanguage") private var selectedLanguage = "ja"
+    @AppStorage("selectedLanguage") private var selectedLanguage = "en"
     @AppStorage("hasSelectedLanguage") private var hasSelectedLanguage = false
 
     var body: some View {
@@ -25,7 +25,7 @@ struct LanguagePickerView: View {
                     .font(.system(size: 72))
                     .foregroundStyle(.tint)
 
-                Text("Sale Alert Buddy")
+                Text(verbatim: "Sale Alert Buddy")
                     .font(.title.bold())
                     .multilineTextAlignment(.center)
 
@@ -44,6 +44,11 @@ struct LanguagePickerView: View {
 
             // Language options
             VStack(spacing: 12) {
+                languageRow(
+                    code: "en",
+                    label: "English",
+                    sublabel: "English"
+                )
                 languageRow(
                     code: "ja",
                     label: "日本語",
@@ -74,6 +79,10 @@ struct LanguagePickerView: View {
             Spacer()
         }
         .animation(.easeInOut(duration: 0.18), value: selectedLanguage)
+        .onAppear {
+            guard !hasSelectedLanguage else { return }
+            selectedLanguage = normalizedLanguageCode(Locale.preferredLanguages.first ?? "en")
+        }
     }
 
     // MARK: - Private helpers
@@ -110,6 +119,13 @@ struct LanguagePickerView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private func normalizedLanguageCode(_ languageIdentifier: String) -> String {
+        let lower = languageIdentifier.lowercased()
+        if lower.hasPrefix("ja") { return "ja" }
+        if lower.hasPrefix("zh") { return "zh-Hans" }
+        return "en"
     }
 }
 

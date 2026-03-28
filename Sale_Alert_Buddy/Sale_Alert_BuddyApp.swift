@@ -9,8 +9,8 @@ struct Sale_Alert_BuddyApp: App {
 
     /// Whether the user has completed first-launch language selection.
     @AppStorage("hasSelectedLanguage") private var hasSelectedLanguage = false
-    /// BCP-47 language tag chosen by the user ("ja" or "zh-Hans").
-    @AppStorage("selectedLanguage") private var selectedLanguage = "ja"
+    /// BCP-47 language tag chosen by the user ("en", "ja", or "zh-Hans").
+    @AppStorage("selectedLanguage") private var selectedLanguage = "en"
 
     @Environment(\.scenePhase) private var scenePhase
 

@@ -77,11 +77,59 @@ struct AddItemSheet: View {
 
             Section {
                 TextField(
+                    String(localized: "addItem.title.placeholder", defaultValue: "Optional custom title"),
+                    text: $viewModel.titleText
+                )
+            } header: {
+                Text(String(localized: "addItem.section.title", defaultValue: "Title (optional)"))
+            } footer: {
+                Text(String(
+                    localized: "addItem.title.hint",
+                    defaultValue: "If empty, the title is taken from the product page."
+                ))
+            }
+
+            Section {
+                TextField(
                     String(localized: "addItem.memo.placeholder", defaultValue: "Optional note…"),
                     text: $viewModel.memo
                 )
             } header: {
                 Text(String(localized: "addItem.section.notes", defaultValue: "Notes (optional)"))
+            }
+
+            Section {
+                Picker(
+                    String(localized: "addItem.notification.type", defaultValue: "Notify condition"),
+                    selection: $viewModel.notificationConditionType
+                ) {
+                    ForEach(NotificationConditionType.allCases) { condition in
+                        Text(condition.displayName).tag(condition)
+                    }
+                }
+                .pickerStyle(.menu)
+                .onChange(of: viewModel.notificationConditionType) { _, newType in
+                    viewModel.setDefaultConditionValue(for: newType)
+                }
+
+                HStack {
+                    TextField(
+                        String(localized: "addItem.notification.value.placeholder", defaultValue: "Value"),
+                        text: $viewModel.notificationConditionValueText
+                    )
+                    .keyboardType(.decimalPad)
+
+                    Text(notificationUnitLabel(for: viewModel.notificationConditionType))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text(String(localized: "addItem.section.notification", defaultValue: "Notification Timing"))
+            } footer: {
+                Text(String(
+                    localized: "addItem.notification.hint",
+                    defaultValue: "Examples: 5 (%), 500 (JPY), or 10000 (notify when at or below)."
+                ))
             }
 
             Section {
@@ -138,6 +186,15 @@ struct AddItemSheet: View {
     private var clipboardHasURL: Bool {
         guard let string = UIPasteboard.general.string else { return false }
         return string.hasPrefix("http://") || string.hasPrefix("https://")
+    }
+
+    private func notificationUnitLabel(for type: NotificationConditionType) -> LocalizedStringKey {
+        switch type {
+        case .percentage:
+            return "%"
+        case .amount, .targetPrice:
+            return "currency.jpy.unit"
+        }
     }
 }
 

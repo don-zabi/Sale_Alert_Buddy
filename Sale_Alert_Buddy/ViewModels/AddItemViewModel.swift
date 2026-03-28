@@ -15,9 +15,13 @@ final class AddItemViewModel {
     // MARK: - Input State
 
     var urlText: String = ""
+    var titleText: String = ""
     var memo: String = ""
     /// Comma-separated tag input, e.g. "sale, electronics, japan"
     var tagsText: String = ""
+    var notificationConditionType: NotificationConditionType = .percentage
+    /// Numeric text for notification condition. Examples: "5" (%), "500" (JPY)
+    var notificationConditionValueText: String = "1"
 
     // MARK: - Operation State
 
@@ -37,7 +41,9 @@ final class AddItemViewModel {
 
     /// True when a URL has been entered and no registration is in-flight.
     var canRegister: Bool {
-        !urlText.trimmingCharacters(in: .whitespaces).isEmpty && !isRegistering
+        !urlText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        parsedNotificationConditionValue != nil &&
+        !isRegistering
     }
 
     /// Tags parsed from comma-separated `tagsText`, trimmed and filtered.
@@ -46,6 +52,25 @@ final class AddItemViewModel {
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
+    }
+
+    var parsedNotificationConditionValue: Double? {
+        let trimmed = notificationConditionValueText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let normalized = trimmed.replacingOccurrences(of: ",", with: ".")
+        guard let value = Double(normalized), value > 0 else { return nil }
+        return value
+    }
+
+    func setDefaultConditionValue(for type: NotificationConditionType) {
+        switch type {
+        case .percentage:
+            notificationConditionValueText = "1"
+        case .amount:
+            notificationConditionValueText = "100"
+        case .targetPrice:
+            notificationConditionValueText = "1000"
+        }
     }
 
     // MARK: - Actions
@@ -71,12 +96,12 @@ final class AddItemViewModel {
     /// - Parameter context: The managed object context to create the item in.
     func register(context: NSManagedObjectContext) async {
         // TODO: check StoreKit subscription status for Phase 2 to determine the real limit
-        let freePlanLimit = 2
+        let freePlanLimit = 20
 
         // Resolve the user-selected in-app locale so error messages appear in the chosen language.
         // `String(localized:)` uses the bundle locale (device language), not the SwiftUI environment
         // locale, so we must pass it explicitly here.
-        let locale = Locale(identifier: UserDefaults.standard.string(forKey: "selectedLanguage") ?? "ja")
+        let locale = Locale(identifier: UserDefaults.standard.string(forKey: "selectedLanguage") ?? "en")
 
         // Fetch current item count for plan limit enforcement
         let countRequest = TrackingItem.fetchRequest()
@@ -91,8 +116,17 @@ final class AddItemViewModel {
 
         if currentCount >= freePlanLimit {
             errorMessage = String(localized: "addItem.error.planLimit",
-                                  defaultValue: "Free plan limit reached (2 items). Upgrade to track more products.",
+                                  defaultValue: "Free plan limit reached (20 items). Upgrade to track more products.",
                                   locale: locale)
+            return
+        }
+
+        guard let conditionValue = parsedNotificationConditionValue else {
+            errorMessage = String(
+                localized: "addItem.error.notificationValue",
+                defaultValue: "Enter a valid notification value greater than 0.",
+                locale: locale
+            )
             return
         }
 
@@ -101,9 +135,12 @@ final class AddItemViewModel {
 
         do {
             let item = try await checkService.registerItem(
-                urlString: urlText.trimmingCharacters(in: .whitespaces),
+                urlString: urlText.trimmingCharacters(in: .whitespacesAndNewlines),
                 memo: memo.isEmpty ? nil : memo,
                 tags: parsedTags,
+                customTitle: titleText.isEmpty ? nil : titleText,
+                notificationConditionType: notificationConditionType,
+                notificationConditionValue: conditionValue,
                 context: context
             )
             registeredItem = item

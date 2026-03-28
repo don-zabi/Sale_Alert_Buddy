@@ -159,6 +159,9 @@ final class TestPriceCheckService {
         urlString: String,
         memo: String?,
         tags: [String],
+        customTitle: String? = nil,
+        notificationConditionType: NotificationConditionType = .percentage,
+        notificationConditionValue: Double = 1.0,
         context: NSManagedObjectContext
     ) async throws -> TrackingItem {
         guard let normalizedUrl = URLNormalizer.normalize(urlString) else {
@@ -177,7 +180,7 @@ final class TestPriceCheckService {
             throw PriceCheckError.duplicateURL(existingItem: existingItem)
         }
 
-        await throttler.waitIfNeeded(for: domain)
+        try? await throttler.waitIfNeeded(for: domain)
 
         let fetchResult: HTMLFetcher.FetchResult
         do {
@@ -187,6 +190,7 @@ final class TestPriceCheckService {
         }
 
         let metadata = metadataExtractor.extract(from: fetchResult.html, requestUrl: fetchResult.finalURL)
+        let trimmedCustomTitle = customTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard let (priceResult, _) = pipeline.extract(from: fetchResult.html) else {
             throw PriceCheckError.priceNotFound
@@ -201,11 +205,13 @@ final class TestPriceCheckService {
         item.baselineCurrency = priceResult.currency
         item.latestPriceDecimal = priceResult.price
         item.latestCurrency = priceResult.currency
-        item.productTitle = metadata.title
+        item.productTitle = (trimmedCustomTitle?.isEmpty == false) ? trimmedCustomTitle : metadata.title
         item.imageUrl = metadata.imageUrl
         item.productIdHintsArray = metadata.productIdHints
         item.memo = memo
         item.tagsArray = tags
+        item.itemNotificationConditionType = notificationConditionType
+        item.itemNotificationConditionValue = notificationConditionValue
         item.lastCheckedAt = Date()
         item.lastSuccessAt = Date()
         item.itemStatus = .ok
@@ -233,7 +239,7 @@ final class TestPriceCheckService {
             return
         }
 
-        await throttler.waitIfNeeded(for: domain)
+        try? await throttler.waitIfNeeded(for: domain)
 
         do {
             let fetchResult = try await mockFetcher.fetch(url: url, timeout: timeout)

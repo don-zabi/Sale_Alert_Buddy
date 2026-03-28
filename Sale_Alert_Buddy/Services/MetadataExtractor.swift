@@ -32,10 +32,12 @@ struct MetadataExtractor: Sendable {
     // MARK: - Title
 
     private func extractTitle(from document: Document) -> String? {
-        // Prefer og:title meta tag
-        if let ogTitle = metaContent(in: document, property: "og:title"),
-           !ogTitle.isEmpty {
-            return ogTitle
+        // Prefer social title meta tags
+        let titleKeys = ["og:title", "twitter:title"]
+        for key in titleKeys {
+            if let value = metaContent(in: document, property: key), !value.isEmpty {
+                return value
+            }
         }
         // Fall back to <title> tag
         if let titleText = try? document.title(), !titleText.isEmpty {
@@ -68,10 +70,15 @@ struct MetadataExtractor: Sendable {
     // MARK: - Image URL
 
     private func extractImageURL(from document: Document) -> String? {
-        guard let url = metaContent(in: document, property: "og:image"),
-              !url.isEmpty,
-              isAbsoluteURL(url) else { return nil }
-        return url
+        let imageKeys = ["og:image", "twitter:image", "twitter:image:src"]
+        for key in imageKeys {
+            if let url = metaContent(in: document, property: key),
+               !url.isEmpty,
+               isAbsoluteURL(url) {
+                return url
+            }
+        }
+        return nil
     }
 
     // MARK: - Product ID Hints
@@ -116,7 +123,9 @@ struct MetadataExtractor: Sendable {
     // MARK: - Helpers
 
     private func metaContent(in document: Document, property: String) -> String? {
-        guard let element = try? document.select("meta[property='\(property)']").first() else {
+        let escaped = property.replacingOccurrences(of: "'", with: "\\'")
+        let selector = "meta[property='\(escaped)'], meta[name='\(escaped)']"
+        guard let element = try? document.select(selector).first() else {
             return nil
         }
         return try? element.attr("content")

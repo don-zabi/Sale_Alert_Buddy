@@ -17,6 +17,8 @@ public class TrackingItem: NSManagedObject, Identifiable {
     @NSManaged public var latestPrice: NSDecimalNumber?
     @NSManaged public var latestCurrency: String?
     @NSManaged public var notificationThreshold: Double
+    @NSManaged public var notificationConditionType: Int16
+    @NSManaged public var notificationConditionValue: Double
     @NSManaged public var lastCheckedAt: Date?
     @NSManaged public var lastSuccessAt: Date?
     @NSManaged public var failCountConsecutive: Int16
@@ -62,6 +64,27 @@ extension TrackingItem {
     var lastNotifiedPriceDecimal: Decimal? {
         get { lastNotifiedPrice?.decimalValue }
         set { lastNotifiedPrice = newValue.map { NSDecimalNumber(decimal: $0) } }
+    }
+
+    var itemNotificationConditionType: NotificationConditionType {
+        get { NotificationConditionType(rawValue: notificationConditionType) ?? .percentage }
+        set { notificationConditionType = newValue.rawValue }
+    }
+
+    var itemNotificationConditionValue: Double {
+        get {
+            if notificationConditionValue > 0 {
+                return notificationConditionValue
+            }
+            let legacyPercent = notificationThreshold * 100
+            if legacyPercent > 0 {
+                return legacyPercent
+            }
+            return itemNotificationConditionType.defaultValue
+        }
+        set {
+            notificationConditionValue = max(newValue, 0)
+        }
     }
 
     var tagsArray: [String] {
@@ -175,6 +198,8 @@ extension TrackingItem {
         item.baselinePrice = NSDecimalNumber.zero
         item.baselineCurrency = ""
         item.notificationThreshold = 0.01
+        item.notificationConditionType = NotificationConditionType.percentage.rawValue
+        item.notificationConditionValue = 1.0
         item.failCountConsecutive = 0
         item.lastErrorType = FetchErrorType.none.rawValue
         item.lastHttpStatus = 0

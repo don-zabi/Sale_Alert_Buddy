@@ -36,6 +36,7 @@ struct ItemListViewModelTests {
     // MARK: - isChecking / checkProgress proxy
 
     @Test("isChecking reflects service state")
+    @MainActor
     func isCheckingReflectsService() {
         let service = PriceCheckService()
         let vm = ItemListViewModel(checkService: service)
@@ -43,6 +44,7 @@ struct ItemListViewModelTests {
     }
 
     @Test("checkProgress reflects service state")
+    @MainActor
     func checkProgressReflectsService() {
         let service = PriceCheckService()
         let vm = ItemListViewModel(checkService: service)

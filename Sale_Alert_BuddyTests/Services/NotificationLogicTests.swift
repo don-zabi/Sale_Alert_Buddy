@@ -5,11 +5,11 @@ import CoreData
 
 /// Tests the `shouldNotify` business logic in NotificationService.
 ///
-/// All four AND conditions are verified:
+/// Core conditions are verified:
 /// 1. newPrice < baselinePrice
 /// 2. newPrice < lastNotifiedPrice (or lastNotifiedPrice is nil)
 /// 3. currency == baselineCurrency
-/// 4. dropFraction >= notificationThreshold
+/// 4. per-item notification condition is satisfied
 ///
 /// Tests use an in-memory Core Data store so no disk state persists between runs.
 @MainActor
@@ -39,6 +39,8 @@ struct NotificationLogicTests {
         item.baselinePriceDecimal = baselinePrice
         item.baselineCurrency = baselineCurrency
         item.notificationThreshold = notificationThreshold
+        item.itemNotificationConditionType = .percentage
+        item.itemNotificationConditionValue = notificationThreshold * 100
         item.lastNotifiedPriceDecimal = lastNotifiedPrice
         return item
     }
@@ -179,13 +181,33 @@ struct NotificationLogicTests {
         #expect(result == true)
     }
 
-    @Test func zeroThresholdAlwaysPassesCondition4() {
+    @Test func zeroThresholdFallsBackToDefaultCondition() {
         let context = makeContext()
-        // With threshold 0.0, any price below baseline qualifies
+        // 0.0 is treated as invalid and falls back to default 1% condition.
         let item = makeItem(context: context, notificationThreshold: 0.0)
 
-        let result = NotificationService.shared.shouldNotify(item: item, newPrice: 999, currency: "JPY")
-        #expect(result == true)
+        let result = NotificationService.shared.shouldNotify(item: item, newPrice: 995, currency: "JPY")
+        #expect(result == false)
+    }
+
+    @Test func amountConditionUsesDropAmount() {
+        let context = makeContext()
+        let item = makeItem(context: context, baselinePrice: 1000)
+        item.itemNotificationConditionType = .amount
+        item.itemNotificationConditionValue = 200
+
+        #expect(NotificationService.shared.shouldNotify(item: item, newPrice: 850, currency: "JPY") == false)
+        #expect(NotificationService.shared.shouldNotify(item: item, newPrice: 800, currency: "JPY") == true)
+    }
+
+    @Test func targetPriceConditionUsesAbsolutePrice() {
+        let context = makeContext()
+        let item = makeItem(context: context, baselinePrice: 1000)
+        item.itemNotificationConditionType = .targetPrice
+        item.itemNotificationConditionValue = 900
+
+        #expect(NotificationService.shared.shouldNotify(item: item, newPrice: 901, currency: "JPY") == false)
+        #expect(NotificationService.shared.shouldNotify(item: item, newPrice: 900, currency: "JPY") == true)
     }
 
     // MARK: - Guard Clauses

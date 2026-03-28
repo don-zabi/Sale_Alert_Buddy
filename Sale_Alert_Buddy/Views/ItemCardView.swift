@@ -5,7 +5,7 @@ struct ItemCardView: View {
 
     let item: TrackingItem
 
-    @AppStorage("selectedLanguage") private var selectedLanguage = "ja"
+    @AppStorage("selectedLanguage") private var selectedLanguage = "en"
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {

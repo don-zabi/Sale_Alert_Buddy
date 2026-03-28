@@ -10,15 +10,33 @@ enum PriceCheckError: Error, LocalizedError {
     case fetchFailed(underlying: Error)
 
     var errorDescription: String? {
+        let locale = Locale(identifier: UserDefaults.standard.string(forKey: "selectedLanguage") ?? "en")
         switch self {
         case .invalidURL:
-            return "The URL is invalid or could not be normalized."
+            return String(
+                localized: "priceCheckError.invalidURL",
+                defaultValue: "The URL is invalid or could not be normalized.",
+                locale: locale
+            )
         case .duplicateURL:
-            return "This URL is already being tracked."
+            return String(
+                localized: "priceCheckError.duplicateURL",
+                defaultValue: "This URL is already being tracked.",
+                locale: locale
+            )
         case .priceNotFound:
-            return "Could not find a price on the page."
+            return String(
+                localized: "priceCheckError.priceNotFound",
+                defaultValue: "Could not find a price on the page.",
+                locale: locale
+            )
         case .fetchFailed(let error):
-            return "Failed to fetch the page: \(error.localizedDescription)"
+            let format = String(
+                localized: "priceCheckError.fetchFailed",
+                defaultValue: "Failed to fetch the page: %@",
+                locale: locale
+            )
+            return String(format: format, error.localizedDescription)
         }
     }
 }
@@ -83,6 +101,9 @@ final class PriceCheckService {
         urlString: String,
         memo: String?,
         tags: [String],
+        customTitle: String? = nil,
+        notificationConditionType: NotificationConditionType = .percentage,
+        notificationConditionValue: Double = 1.0,
         context: NSManagedObjectContext
     ) async throws -> TrackingItem {
         // 1. Normalize URL
@@ -118,6 +139,7 @@ final class PriceCheckService {
 
         // 6. Extract metadata
         let metadata = metadataExtractor.extract(from: fetchResult.html, requestUrl: fetchResult.finalURL)
+        let trimmedCustomTitle = customTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // 7. Extract price
         guard let (priceResult, _) = pipeline.extract(from: fetchResult.html) else {
@@ -134,11 +156,13 @@ final class PriceCheckService {
         item.baselineCurrency = priceResult.currency
         item.latestPriceDecimal = priceResult.price
         item.latestCurrency = priceResult.currency
-        item.productTitle = metadata.title
+        item.productTitle = (trimmedCustomTitle?.isEmpty == false) ? trimmedCustomTitle : metadata.title
         item.imageUrl = metadata.imageUrl
         item.productIdHintsArray = metadata.productIdHints
         item.memo = memo
         item.tagsArray = tags
+        item.itemNotificationConditionType = notificationConditionType
+        item.itemNotificationConditionValue = notificationConditionValue
         item.lastCheckedAt = Date()
         item.lastSuccessAt = Date()
         item.itemStatus = .ok

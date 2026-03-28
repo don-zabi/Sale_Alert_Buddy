@@ -39,7 +39,9 @@ struct MetaTagExtractor: PriceExtractor {
     // MARK: - Private Helpers
 
     private func metaContent(in document: Document, property: String) -> String? {
-        guard let element = try? document.select("meta[property='\(property)']").first() else {
+        let escaped = property.replacingOccurrences(of: "'", with: "\\'")
+        let selector = "meta[property='\(escaped)'], meta[name='\(escaped)']"
+        guard let element = try? document.select(selector).first() else {
             return nil
         }
         return try? element.attr("content")

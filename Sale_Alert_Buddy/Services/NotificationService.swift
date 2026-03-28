@@ -40,7 +40,7 @@ final class NotificationService {
     /// 1. `newPrice` is strictly less than the baseline price.
     /// 2. `newPrice` is strictly less than the last notified price (or none has been sent yet).
     /// 3. The currency matches the baseline currency.
-    /// 4. The percentage drop meets or exceeds `notificationThreshold`.
+    /// 4. The configured per-item notification condition is satisfied.
     ///
     /// Also returns `false` if `newPrice <= 0` or `currency` is empty.
     func shouldNotify(item: TrackingItem, newPrice: Decimal, currency: String) -> Bool {
@@ -62,11 +62,25 @@ final class NotificationService {
         // Condition 3: currency must match baseline
         guard currency == item.baselineCurrency else { return false }
 
-        // Condition 4: percentage drop must meet threshold
+        // Condition 4: per-item condition must match
         guard baseline > 0 else { return false }
-        let dropFraction = (baseline - newPrice) / baseline
-        let threshold = Decimal(item.notificationThreshold)
-        guard dropFraction >= threshold else { return false }
+        let dropAmount = baseline - newPrice
+        let conditionType = item.itemNotificationConditionType
+        let conditionValue = item.itemNotificationConditionValue
+
+        switch conditionType {
+        case .percentage:
+            let thresholdPercent = conditionValue > 0 ? conditionValue : (item.notificationThreshold * 100)
+            guard thresholdPercent > 0 else { return true }
+            let dropPercent = Double(truncating: (dropAmount / baseline * 100) as NSDecimalNumber)
+            guard dropPercent >= thresholdPercent else { return false }
+        case .amount:
+            guard conditionValue > 0 else { return false }
+            guard dropAmount >= Decimal(conditionValue) else { return false }
+        case .targetPrice:
+            guard conditionValue > 0 else { return false }
+            guard newPrice <= Decimal(conditionValue) else { return false }
+        }
 
         return true
     }
@@ -78,13 +92,13 @@ final class NotificationService {
     func sendPriceDropNotification(for item: TrackingItem, newPrice: Decimal, currency: String) async {
         let content = UNMutableNotificationContent()
 
-        let isJapanese = Locale.current.language.languageCode?.identifier == "ja"
-
-        if isJapanese {
-            content.title = "\(item.displayTitle) が値下がりしました"
-        } else {
-            content.title = "\(item.displayTitle) Price Drop"
-        }
+        let locale = Locale(identifier: UserDefaults.standard.string(forKey: "selectedLanguage") ?? "en")
+        let titleFormat = String(
+            localized: "notification.priceDrop.title",
+            defaultValue: "%@ Price Drop",
+            locale: locale
+        )
+        content.title = String(format: titleFormat, item.displayTitle)
 
         let oldFormatted = NotificationService.formatPrice(item.baselinePriceDecimal, currency: item.baselineCurrency)
         let newFormatted = NotificationService.formatPrice(newPrice, currency: currency)
