@@ -24,7 +24,8 @@ struct ItemListView: View {
                         ToolbarItem(placement: .topBarLeading) {
                             settingsButton
                         }
-                        ToolbarItem(placement: .topBarTrailing) {
+                        ToolbarItemGroup(placement: .topBarTrailing) {
+                            categoryFilterMenu
                             addButton
                         }
                     }
@@ -46,6 +47,11 @@ struct ItemListView: View {
         }
         .task {
             _ = await NotificationService.shared.requestPermission()
+        }
+        .onChange(of: availableCategories) { _, categories in
+            if let selected = viewModel.selectedCategory, !categories.contains(selected) {
+                viewModel.selectedCategory = nil
+            }
         }
     }
 
@@ -105,6 +111,40 @@ struct ItemListView: View {
         }
     }
 
+    private var categoryFilterMenu: some View {
+        Menu {
+            Button {
+                viewModel.selectedCategory = nil
+            } label: {
+                Label(
+                    String(localized: "list.category.all", defaultValue: "All Categories"),
+                    systemImage: viewModel.selectedCategory == nil ? "checkmark" : "line.3.horizontal.decrease.circle"
+                )
+            }
+
+            if !availableCategories.isEmpty {
+                Divider()
+                ForEach(availableCategories, id: \.self) { category in
+                    Button {
+                        viewModel.selectedCategory = category
+                    } label: {
+                        Label(
+                            title: { Text(verbatim: category) },
+                            icon: {
+                                if viewModel.selectedCategory == category {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: viewModel.selectedCategory == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                .accessibilityLabel(String(localized: "list.category.filter", defaultValue: "Filter by Category"))
+        }
+    }
+
     @ViewBuilder
     private func pauseResumeAction(for item: TrackingItem) -> some View {
         if item.itemStatus == .paused {
@@ -137,26 +177,38 @@ struct ItemListView: View {
     /// Note: Core Data `@FetchRequest` owns the primary sort (createdAt desc).
     /// Secondary sorts applied here are in-memory and remain reactive via SwiftUI.
     private var filteredItems: [TrackingItem] {
-        let filtered: [TrackingItem]
+        let statusFiltered: [TrackingItem]
         switch viewModel.filterStatus {
         case .all:
-            filtered = Array(items)
+            statusFiltered = Array(items)
         case .activeOnly:
-            filtered = items.filter { $0.itemStatus != .paused }
+            statusFiltered = items.filter { $0.itemStatus != .paused }
         case .pausedOnly:
-            filtered = items.filter { $0.itemStatus == .paused }
+            statusFiltered = items.filter { $0.itemStatus == .paused }
+        }
+
+        let categoryFiltered: [TrackingItem]
+        if let selectedCategory = viewModel.selectedCategory {
+            categoryFiltered = statusFiltered.filter { $0.itemCategory == selectedCategory }
+        } else {
+            categoryFiltered = statusFiltered
         }
 
         switch viewModel.sortOrder {
         case .createdDesc:
-            return filtered  // already sorted by Core Data fetch request
+            return categoryFiltered  // already sorted by Core Data fetch request
         case .priceDropDesc:
-            return filtered.sorted { ($0.dropPercentage ?? 0) > ($1.dropPercentage ?? 0) }
+            return categoryFiltered.sorted { ($0.dropPercentage ?? 0) > ($1.dropPercentage ?? 0) }
         case .lastCheckedAsc:
-            return filtered.sorted {
+            return categoryFiltered.sorted {
                 ($0.lastCheckedAt ?? .distantPast) < ($1.lastCheckedAt ?? .distantPast)
             }
         }
+    }
+
+    private var availableCategories: [String] {
+        let categories = items.compactMap(\.itemCategory)
+        return Array(Set(categories)).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 }
 

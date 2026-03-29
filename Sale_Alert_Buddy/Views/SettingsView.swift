@@ -6,10 +6,12 @@ import UserNotifications
 /// Covers notification permissions, background refresh info, plan tier, and app version.
 struct SettingsView: View {
 
+    @AppStorage("selectedLanguage") private var selectedLanguage = "en"
     @State private var notificationStatus: String = ""
 
     var body: some View {
         Form {
+            languageSection
             notificationsSection
             backgroundRefreshSection
             planSection
@@ -23,6 +25,22 @@ struct SettingsView: View {
     }
 
     // MARK: - Sections
+
+    private var languageSection: some View {
+        Section {
+            Picker(
+                String(localized: "settings.language.current", defaultValue: "Language"),
+                selection: $selectedLanguage
+            ) {
+                Text(String(localized: "languagePicker.english", defaultValue: "English")).tag("en")
+                Text(String(localized: "languagePicker.japanese", defaultValue: "日本語")).tag("ja")
+                Text(String(localized: "languagePicker.chinese", defaultValue: "中文（简体）")).tag("zh-Hans")
+            }
+            .pickerStyle(.menu)
+        } header: {
+            Text(String(localized: "settings.section.language", defaultValue: "Language"))
+        }
+    }
 
     private var notificationsSection: some View {
         Section {

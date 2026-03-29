@@ -26,6 +26,7 @@ final class ItemListViewModel {
 
     var sortOrder: SortOrder = .createdDesc
     var filterStatus: FilterStatus = .all
+    var selectedCategory: String? = nil
 
     // MARK: - Sheet / Error State
 

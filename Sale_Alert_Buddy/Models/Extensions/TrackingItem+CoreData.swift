@@ -27,6 +27,7 @@ public class TrackingItem: NSManagedObject, Identifiable {
     @NSManaged public var productTitle: String?
     @NSManaged public var productIdHints: String?
     @NSManaged public var imageUrl: String?
+    @NSManaged public var category: String?
     @NSManaged public var memo: String?
     @NSManaged public var tags: String?
     @NSManaged public var lastNotifiedPrice: NSDecimalNumber?
@@ -115,6 +116,18 @@ extension TrackingItem {
 
     var displayTitle: String {
         productTitle ?? domain
+    }
+
+    var itemCategory: String? {
+        get {
+            guard let category else { return nil }
+            let trimmed = category.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        set {
+            let trimmed = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            category = trimmed.isEmpty ? nil : trimmed
+        }
     }
 
     var dropAmount: Decimal? {

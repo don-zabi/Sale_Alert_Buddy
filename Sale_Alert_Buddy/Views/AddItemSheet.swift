@@ -6,8 +6,14 @@ struct AddItemSheet: View {
 
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
+    @FetchRequest(
+        fetchRequest: TrackingItem.allItemsFetchRequest(),
+        animation: .default
+    ) private var existingItems: FetchedResults<TrackingItem>
 
     @State private var viewModel = AddItemViewModel()
+    @State private var clipboardHasURL: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -42,6 +48,14 @@ struct AddItemSheet: View {
             .onChange(of: viewModel.registeredItem) { _, newItem in
                 if newItem != nil {
                     dismiss()
+                }
+            }
+            .onAppear {
+                refreshClipboardAvailability()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active {
+                    refreshClipboardAvailability()
                 }
             }
         }
@@ -87,6 +101,33 @@ struct AddItemSheet: View {
                     localized: "addItem.title.hint",
                     defaultValue: "If empty, the title is taken from the product page."
                 ))
+            }
+
+            Section {
+                TextField(
+                    String(localized: "addItem.category.placeholder", defaultValue: "Optional category"),
+                    text: $viewModel.categoryText
+                )
+
+                if !existingCategories.isEmpty {
+                    Menu {
+                        ForEach(existingCategories, id: \.self) { category in
+                            Button {
+                                viewModel.categoryText = category
+                            } label: {
+                                Text(verbatim: category)
+                            }
+                        }
+                    } label: {
+                        Label(
+                            String(localized: "addItem.category.pickExisting", defaultValue: "Choose Existing Category"),
+                            systemImage: "folder"
+                        )
+                        .font(.subheadline)
+                    }
+                }
+            } header: {
+                Text(String(localized: "addItem.section.category", defaultValue: "Category (optional)"))
             }
 
             Section {
@@ -183,9 +224,22 @@ struct AddItemSheet: View {
 
     // MARK: - Helpers
 
-    private var clipboardHasURL: Bool {
-        guard let string = UIPasteboard.general.string else { return false }
-        return string.hasPrefix("http://") || string.hasPrefix("https://")
+    private var existingCategories: [String] {
+        let values = existingItems.compactMap { $0.itemCategory }
+        return Array(Set(values)).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    private func refreshClipboardAvailability() {
+        let pasteboard = UIPasteboard.general
+        if pasteboard.url != nil {
+            clipboardHasURL = true
+            return
+        }
+        if let text = pasteboard.string {
+            clipboardHasURL = text.hasPrefix("http://") || text.hasPrefix("https://")
+            return
+        }
+        clipboardHasURL = false
     }
 
     private func notificationUnitLabel(for type: NotificationConditionType) -> LocalizedStringKey {

@@ -101,6 +101,7 @@ final class PriceCheckService {
         urlString: String,
         memo: String?,
         tags: [String],
+        category: String? = nil,
         customTitle: String? = nil,
         notificationConditionType: NotificationConditionType = .percentage,
         notificationConditionValue: Double = 1.0,
@@ -159,6 +160,7 @@ final class PriceCheckService {
         item.productTitle = (trimmedCustomTitle?.isEmpty == false) ? trimmedCustomTitle : metadata.title
         item.imageUrl = metadata.imageUrl
         item.productIdHintsArray = metadata.productIdHints
+        item.itemCategory = category
         item.memo = memo
         item.tagsArray = tags
         item.itemNotificationConditionType = notificationConditionType
@@ -241,6 +243,7 @@ final class PriceCheckService {
                 errorType: .none,
                 extractMethod: extractMethod,
                 durationMs: fetchResult.durationMs,
+                note: FetchLog.makePriceNote(price: priceResult.price, currency: priceResult.currency),
                 context: context
             )
             item.addFetchLogAndRotate(log, context: context)

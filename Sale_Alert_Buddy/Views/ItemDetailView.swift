@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreData
+import Charts
 
 /// Detailed view for a single tracked item.
 ///
@@ -31,6 +32,7 @@ struct ItemDetailView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     headerSection
                     priceSection
+                    priceTrendSection
                     notificationSection
                     statusSection
                     actionsSection
@@ -134,6 +136,41 @@ struct ItemDetailView: View {
 
     // MARK: - Notification Threshold
 
+    private var priceTrendSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(String(localized: "detail.section.priceTrend", defaultValue: "Price Trend"))
+                .font(.headline)
+
+            if viewModel.priceTrendPoints.count >= 2 {
+                Chart(viewModel.priceTrendPoints) { point in
+                    LineMark(
+                        x: .value("Timestamp", point.timestamp),
+                        y: .value("Price", point.price)
+                    )
+                    .foregroundStyle(.tint)
+
+                    PointMark(
+                        x: .value("Timestamp", point.timestamp),
+                        y: .value("Price", point.price)
+                    )
+                    .foregroundStyle(.tint)
+                    .symbolSize(20)
+                }
+                .frame(height: 180)
+            } else {
+                Text(String(
+                    localized: "detail.priceTrend.empty",
+                    defaultValue: "Price history will appear after two or more successful checks."
+                ))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+    }
+
     private var notificationSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(String(localized: "detail.section.notification", defaultValue: "Notification"))
@@ -225,17 +262,17 @@ struct ItemDetailView: View {
             .buttonStyle(.borderedProminent)
             .disabled(viewModel.isChecking)
 
-            // Open in Safari
+            // Buy Now
             Button {
                 viewModel.openInSafari()
             } label: {
                 Label(
-                    String(localized: "detail.action.openSafari", defaultValue: "Open in Safari"),
-                    systemImage: "safari"
+                    String(localized: "detail.action.buy", defaultValue: "Buy Now"),
+                    systemImage: "cart.fill"
                 )
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
 
             // Pause / Resume
             if item.itemStatus == .paused {

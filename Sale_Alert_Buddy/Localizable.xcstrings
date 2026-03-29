@@ -137,6 +137,50 @@
         }
       }
     },
+    "addItem.category.pickExisting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Existing Category"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "既存カテゴリから選択"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从已有分类中选择"
+          }
+        }
+      }
+    },
+    "addItem.category.placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional category"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カテゴリ（任意）"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分类（可选）"
+          }
+        }
+      }
+    },
     "addItem.error.fetch" : {
       "localizations" : {
         "en" : {
@@ -387,6 +431,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在检查价格…"
+          }
+        }
+      }
+    },
+    "addItem.section.category" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Category (optional)"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カテゴリ（任意）"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分类（可选）"
           }
         }
       }
@@ -689,6 +755,28 @@
         }
       }
     },
+    "detail.action.buy" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buy Now"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "購入する"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立即购买"
+          }
+        }
+      }
+    },
     "detail.action.checkNow" : {
       "localizations" : {
         "en" : {
@@ -712,6 +800,7 @@
       }
     },
     "detail.action.openSafari" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1037,6 +1126,28 @@
         }
       }
     },
+    "detail.priceTrend.empty" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Price history will appear after two or more successful checks."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2回以上チェックに成功すると価格推移が表示されます。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "成功检查两次及以上后将显示价格走势。"
+          }
+        }
+      }
+    },
     "detail.section.notification" : {
       "localizations" : {
         "en" : {
@@ -1077,6 +1188,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "价格"
+          }
+        }
+      }
+    },
+    "detail.section.priceTrend" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Price Trend"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "価格推移"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "价格走势"
           }
         }
       }
@@ -1222,7 +1355,6 @@
       }
     },
     "languagePicker.chinese" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1266,8 +1398,29 @@
         }
       }
     },
+    "languagePicker.english" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "English"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "English"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "English"
+          }
+        }
+      }
+    },
     "languagePicker.japanese" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1329,6 +1482,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "选择语言"
+          }
+        }
+      }
+    },
+    "list.category.all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Categories"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべてのカテゴリ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部分类"
+          }
+        }
+      }
+    },
+    "list.category.filter" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter by Category"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カテゴリで絞り込み"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按分类筛选"
           }
         }
       }
@@ -1549,6 +1746,10 @@
         }
       }
     },
+    "Price" : {
+      "comment" : "\"Price\" is a placeholder that should be replaced with the actual name of the entity that stores prices.",
+      "isCommentAutoGenerated" : true
+    },
     "priceCheckError.duplicateURL" : {
       "localizations" : {
         "en" : {
@@ -1699,6 +1900,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开应用时会检查价格。后台刷新取决于iOS系统状况。"
+          }
+        }
+      }
+    },
+    "settings.language.current" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Language"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "言語"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语言"
           }
         }
       }
@@ -1989,6 +2212,28 @@
         }
       }
     },
+    "settings.section.language" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Language"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "言語"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语言"
+          }
+        }
+      }
+    },
     "settings.section.notifications" : {
       "localizations" : {
         "en" : {
@@ -2149,6 +2394,10 @@
           }
         }
       }
+    },
+    "Timestamp" : {
+      "comment" : "The x-axis label for the line chart.",
+      "isCommentAutoGenerated" : true
     }
   },
   "version" : "1.1"

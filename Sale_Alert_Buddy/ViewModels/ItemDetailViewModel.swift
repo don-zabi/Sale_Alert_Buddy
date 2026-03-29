@@ -3,6 +3,12 @@ import CoreData
 import UIKit
 import Observation
 
+struct PriceTrendPoint: Identifiable {
+    let id = UUID()
+    let timestamp: Date
+    let price: Double
+}
+
 /// ViewModel for the item detail screen.
 ///
 /// Provides formatted price strings, status descriptions, and delegates
@@ -83,6 +89,47 @@ final class ItemDetailViewModel {
                 formatted
             )
         }
+    }
+
+    var priceTrendPoints: [PriceTrendPoint] {
+        var points: [PriceTrendPoint] = [
+            PriceTrendPoint(
+                timestamp: item.createdAt,
+                price: NSDecimalNumber(decimal: item.baselinePriceDecimal).doubleValue
+            )
+        ]
+
+        let successLogs = item.fetchLogsArray
+            .filter(\.isSuccess)
+            .sorted { $0.timestamp < $1.timestamp }
+
+        for log in successLogs {
+            guard let parsed = FetchLog.parsePriceNote(log.note),
+                  parsed.currency == item.baselineCurrency else {
+                continue
+            }
+            points.append(
+                PriceTrendPoint(
+                    timestamp: log.timestamp,
+                    price: NSDecimalNumber(decimal: parsed.price).doubleValue
+                )
+            )
+        }
+
+        if points.count == 1,
+           let latest = item.latestPriceDecimal,
+           item.latestCurrency == item.baselineCurrency,
+           let lastSuccess = item.lastSuccessAt,
+           lastSuccess > item.createdAt {
+            points.append(
+                PriceTrendPoint(
+                    timestamp: lastSuccess,
+                    price: NSDecimalNumber(decimal: latest).doubleValue
+                )
+            )
+        }
+
+        return points.sorted { $0.timestamp < $1.timestamp }
     }
 
     // MARK: - Status Description

@@ -159,6 +159,7 @@ final class TestPriceCheckService {
         urlString: String,
         memo: String?,
         tags: [String],
+        category: String? = nil,
         customTitle: String? = nil,
         notificationConditionType: NotificationConditionType = .percentage,
         notificationConditionValue: Double = 1.0,
@@ -208,6 +209,7 @@ final class TestPriceCheckService {
         item.productTitle = (trimmedCustomTitle?.isEmpty == false) ? trimmedCustomTitle : metadata.title
         item.imageUrl = metadata.imageUrl
         item.productIdHintsArray = metadata.productIdHints
+        item.itemCategory = category
         item.memo = memo
         item.tagsArray = tags
         item.itemNotificationConditionType = notificationConditionType
@@ -268,7 +270,16 @@ final class TestPriceCheckService {
 
             await throttler.recordSuccess(for: domain)
 
-            let log = FetchLog.create(for: item, outcome: .success, httpStatus: Int16(fetchResult.httpStatus), errorType: .none, extractMethod: extractMethod, durationMs: fetchResult.durationMs, context: context)
+            let log = FetchLog.create(
+                for: item,
+                outcome: .success,
+                httpStatus: Int16(fetchResult.httpStatus),
+                errorType: .none,
+                extractMethod: extractMethod,
+                durationMs: fetchResult.durationMs,
+                note: FetchLog.makePriceNote(price: priceResult.price, currency: priceResult.currency),
+                context: context
+            )
             item.addFetchLogAndRotate(log, context: context)
 
             let shouldSend = await MainActor.run {

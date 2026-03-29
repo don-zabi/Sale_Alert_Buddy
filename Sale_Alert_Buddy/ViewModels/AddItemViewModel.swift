@@ -16,6 +16,7 @@ final class AddItemViewModel {
 
     var urlText: String = ""
     var titleText: String = ""
+    var categoryText: String = ""
     var memo: String = ""
     /// Comma-separated tag input, e.g. "sale, electronics, japan"
     var tagsText: String = ""
@@ -138,6 +139,7 @@ final class AddItemViewModel {
                 urlString: urlText.trimmingCharacters(in: .whitespacesAndNewlines),
                 memo: memo.isEmpty ? nil : memo,
                 tags: parsedTags,
+                category: categoryText,
                 customTitle: titleText.isEmpty ? nil : titleText,
                 notificationConditionType: notificationConditionType,
                 notificationConditionValue: conditionValue,

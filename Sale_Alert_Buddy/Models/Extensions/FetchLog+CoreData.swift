@@ -70,4 +70,37 @@ extension FetchLog {
         log.trackingItem = item
         return log
     }
+
+    static func makePriceNote(price: Decimal, currency: String) -> String {
+        let priceString = NSDecimalNumber(decimal: price).stringValue
+        return "price=\(priceString);currency=\(currency)"
+    }
+
+    static func parsePriceNote(_ note: String?) -> (price: Decimal, currency: String)? {
+        guard let note, !note.isEmpty else { return nil }
+
+        var priceText: String?
+        var currency: String?
+
+        for segment in note.split(separator: ";") {
+            let parts = segment.split(separator: "=", maxSplits: 1).map(String.init)
+            guard parts.count == 2 else { continue }
+            switch parts[0] {
+            case "price":
+                priceText = parts[1]
+            case "currency":
+                currency = parts[1]
+            default:
+                continue
+            }
+        }
+
+        guard let priceText,
+              let price = Decimal(string: priceText),
+              let currency,
+              !currency.isEmpty else {
+            return nil
+        }
+        return (price, currency)
+    }
 }
