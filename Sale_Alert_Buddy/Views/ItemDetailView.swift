@@ -16,6 +16,14 @@ struct ItemDetailView: View {
     @State private var viewModel: ItemDetailViewModel
     @State private var selectedNotificationType: NotificationConditionType
     @State private var notificationValueText: String
+    @FocusState private var isValueFieldFocused: Bool
+    @State private var showSavedFeedback = false
+    @State private var showingDeleteConfirm = false
+
+    @FetchRequest(
+        fetchRequest: TrackingItem.allItemsFetchRequest(),
+        animation: .none
+    ) private var allItems: FetchedResults<TrackingItem>
 
     init(item: TrackingItem) {
         self.item = item
@@ -31,6 +39,8 @@ struct ItemDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     headerSection
+                    categorySection
+                    memoSection
                     priceSection
                     priceTrendSection
                     notificationSection
@@ -59,6 +69,29 @@ struct ItemDetailView: View {
             }
         } message: {
             Text(viewModel.errorMessage ?? "")
+        }
+        .alert("list.category.edit.title", isPresented: $viewModel.showingCategoryEdit) {
+            TextField("list.category.name.placeholder", text: $viewModel.categoryNameInput)
+            Button("action.cancel", role: .cancel) {
+                viewModel.showingCategoryEdit = false
+                viewModel.categoryNameInput = ""
+            }
+            Button("action.save") {
+                viewModel.saveCategoryEdit(context: viewContext)
+            }
+        }
+        .alert(
+            String(localized: "detail.memo.edit.title", defaultValue: "Edit Note"),
+            isPresented: $viewModel.showingMemoEdit
+        ) {
+            TextField("addItem.memo.placeholder", text: $viewModel.memoInput)
+            Button("action.cancel", role: .cancel) {
+                viewModel.showingMemoEdit = false
+                viewModel.memoInput = ""
+            }
+            Button("action.save") {
+                viewModel.saveMemoEdit(context: viewContext)
+            }
         }
     }
 
@@ -104,6 +137,138 @@ struct ItemDetailView: View {
                     .lineLimit(2)
             }
         }
+    }
+
+    // MARK: - Category Section
+
+    private var categorySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("detail.section.category")
+                .font(.headline)
+
+            if let category = item.itemCategory {
+                HStack(spacing: 10) {
+                    Text(verbatim: category)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.accentColor.opacity(0.15), in: Capsule())
+
+                    Spacer()
+
+                    Button {
+                        viewModel.startEditingCategory()
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button(role: .destructive) {
+                        viewModel.clearCategory(context: viewContext)
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(.bordered)
+                }
+            } else {
+                Text("detail.category.none")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 8) {
+                if item.itemCategory == nil {
+                    Button {
+                        viewModel.startEditingCategory()
+                    } label: {
+                        Label("list.category.add", systemImage: "plus")
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                if !otherCategories.isEmpty {
+                    Menu {
+                        ForEach(otherCategories, id: \.self) { cat in
+                            Button {
+                                viewModel.setCategory(cat, context: viewContext)
+                            } label: {
+                                Text(verbatim: cat)
+                            }
+                        }
+                    } label: {
+                        Label("addItem.category.pickExisting", systemImage: "folder")
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    /// Categories used by other items (excludes the current item's category).
+    private var otherCategories: [String] {
+        let all = allItems.compactMap(\.itemCategory)
+        let unique = Array(Set(all)).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        return unique.filter { $0 != item.itemCategory }
+    }
+
+    private var memoSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Text("addItem.section.notes")
+                    .font(.headline)
+
+                Spacer()
+
+                if memoText != nil {
+                    Button {
+                        viewModel.startEditingMemo()
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button(role: .destructive) {
+                        viewModel.clearMemo(context: viewContext)
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
+            if let memoText {
+                Text(verbatim: memoText)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text(String(localized: "detail.memo.empty", defaultValue: "No note yet."))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    viewModel.startEditingMemo()
+                } label: {
+                    Label {
+                        Text(String(localized: "detail.memo.add", defaultValue: "Add Note"))
+                    } icon: {
+                        Image(systemName: "plus")
+                    }
+                    .font(.subheadline)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Price Section
@@ -156,6 +321,7 @@ struct ItemDetailView: View {
                     .foregroundStyle(.tint)
                     .symbolSize(20)
                 }
+                .chartYScale(domain: viewModel.chartYDomain)
                 .frame(height: 180)
             } else {
                 Text(String(
@@ -172,34 +338,142 @@ struct ItemDetailView: View {
     }
 
     private var notificationSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(String(localized: "detail.section.notification", defaultValue: "Notification"))
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 14) {
 
-            Text(verbatim: viewModel.notificationConditionDescription)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            // Header + current saved rule
+            VStack(alignment: .leading, spacing: 5) {
+                Text(String(localized: "detail.section.notification", defaultValue: "Notification"))
+                    .font(.headline)
 
-            Picker(
-                String(localized: "detail.notifyThreshold.type", defaultValue: "Condition Type"),
-                selection: $selectedNotificationType
-            ) {
-                ForEach(NotificationConditionType.allCases) { condition in
-                    Text(condition.displayName).tag(condition)
+                HStack(alignment: .top, spacing: 5) {
+                    Image(systemName: "bell.fill")
+                        .font(.caption2)
+                        .foregroundStyle(Color.accentColor)
+                        .padding(.top, 1)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(localized: "detail.notify.currentSetting", defaultValue: "Current setting:"))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                        Text(verbatim: viewModel.notificationConditionDescription)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if let targetPrice = viewModel.savedNotificationTargetPrice {
+                            Text(verbatim: String(
+                                format: String(
+                                    localized: "detail.notify.targetCalc",
+                                    defaultValue: "→ Notify at %@ or below"
+                                ),
+                                targetPrice
+                            ))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
-            .pickerStyle(.menu)
 
-            HStack {
-                TextField(
-                    String(localized: "detail.notifyThreshold.value", defaultValue: "Value"),
-                    text: $notificationValueText
+            // Condition type + value input — single row
+            HStack(spacing: 10) {
+                // Custom segmented control
+                HStack(spacing: 2) {
+                    ForEach(NotificationConditionType.allCases) { condition in
+                        Button {
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                                selectedNotificationType = condition
+                            }
+                        } label: {
+                            Text(condition.shortLabel)
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                                .foregroundStyle(
+                                    selectedNotificationType == condition ? .white : .secondary
+                                )
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 9)
+                                .background(
+                                    selectedNotificationType == condition
+                                        ? Color.accentColor
+                                        : Color.clear,
+                                    in: RoundedRectangle(cornerRadius: 8)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .animation(.spring(response: 0.25, dampingFraction: 0.75), value: selectedNotificationType)
+                    }
+                }
+                .padding(3)
+                .background(Color(.systemGray4).opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+
+                // Value input with unit label
+                HStack(spacing: 4) {
+                    TextField(
+                        "0",
+                        text: $notificationValueText
+                    )
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(minWidth: 48)
+                    .focused($isValueFieldFocused)
+                    .onChange(of: isValueFieldFocused) { _, focused in
+                        guard focused else { return }
+                        // Move cursor to end so the user can immediately edit
+                        DispatchQueue.main.async {
+                            UIApplication.shared.sendAction(
+                                #selector(UIResponder.selectAll(_:)),
+                                to: nil, from: nil, for: nil
+                            )
+                        }
+                    }
+
+                    Text(notificationUnitLabel(for: selectedNotificationType))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isValueFieldFocused ? Color.accentColor : Color(.systemGray4), lineWidth: isValueFieldFocused ? 1.5 : 1)
                 )
-                .keyboardType(.decimalPad)
+            }
 
-                Text(notificationUnitLabel(for: selectedNotificationType))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            // Real-time preview of the rule being edited
+            if let preview = viewModel.editingPreview(
+                type: selectedNotificationType,
+                valueText: notificationValueText
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(verbatim: preview.description)
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+
+                    if let targetPrice = preview.targetPrice {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.right.circle.fill")
+                                .font(.caption2)
+                                .foregroundStyle(Color.accentColor)
+                            Text(verbatim: String(
+                                format: String(
+                                    localized: "detail.notify.targetCalc",
+                                    defaultValue: "Notify at %@ or below"
+                                ),
+                                targetPrice
+                            ))
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+                .animation(.easeInOut(duration: 0.15), value: notificationValueText)
+                .animation(.easeInOut(duration: 0.15), value: selectedNotificationType)
             }
 
             Button(String(localized: "detail.notifyThreshold.save", defaultValue: "Save Notification Rule")) {
@@ -210,8 +484,25 @@ struct ItemDetailView: View {
                 )
                 selectedNotificationType = viewModel.notificationConditionType
                 notificationValueText = viewModel.notificationConditionValueText
+                isValueFieldFocused = false
+                withAnimation(.easeInOut(duration: 0.2)) { showSavedFeedback = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    withAnimation(.easeOut(duration: 0.3)) { showSavedFeedback = false }
+                }
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
+            .frame(maxWidth: .infinity)
+
+            if showSavedFeedback {
+                HStack(spacing: 5) {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text(String(localized: "detail.notifyThreshold.saved", defaultValue: "Changes saved"))
+                }
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(.green)
+                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .leading)))
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -299,6 +590,34 @@ struct ItemDetailView: View {
                 }
                 .buttonStyle(.bordered)
                 .tint(.orange)
+            }
+
+            // Delete
+            Button(role: .destructive) {
+                showingDeleteConfirm = true
+            } label: {
+                Label(
+                    String(localized: "action.delete", defaultValue: "Delete"),
+                    systemImage: "trash"
+                )
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .confirmationDialog(
+                String(localized: "detail.action.delete.confirm",
+                       defaultValue: "Delete this item?"),
+                isPresented: $showingDeleteConfirm,
+                titleVisibility: .visible
+            ) {
+                Button(
+                    String(localized: "action.delete", defaultValue: "Delete"),
+                    role: .destructive
+                ) {
+                    viewModel.deleteItem(context: viewContext)
+                }
+            } message: {
+                Text(String(localized: "detail.action.delete.message",
+                            defaultValue: "This item and all its price history will be permanently removed."))
             }
         }
     }
@@ -397,6 +716,14 @@ struct ItemDetailView: View {
         case .amount, .targetPrice:
             return "currency.jpy.unit"
         }
+    }
+
+    private var memoText: String? {
+        guard let memo = item.memo?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !memo.isEmpty else {
+            return nil
+        }
+        return memo
     }
 }
 

@@ -33,6 +33,48 @@ struct URLNormalizerTests {
         #expect(!result!.contains("sc_i="))
     }
 
+    @Test func yahooStoreURLRemovesNodeeplink() {
+        let input = "https://store.shopping.yahoo.co.jp/hokkkaido/illbless2lp-2.html?nodeeplink=0"
+        let result = URLNormalizer.normalize(input)
+        #expect(result == "https://store.shopping.yahoo.co.jp/hokkkaido/illbless2lp-2.html")
+    }
+
+    @Test func wowmaURLRemovesWadd() {
+        let input = "https://wowma.jp/item/752700556?wadd=1000000000000008821_10506_2390275"
+        let result = URLNormalizer.normalize(input)
+        #expect(result == "https://wowma.jp/item/752700556")
+    }
+
+    @Test func rakutenURLRemovesSourceId() {
+        let input = "https://item.rakuten.co.jp/marusanstore/160193-24p/?s-id=smt_top_normal_superdeal&sc_i=rk_sp_item_shc_share"
+        let result = URLNormalizer.normalize(input)
+        #expect(result == "https://item.rakuten.co.jp/marusanstore/160193-24p")
+    }
+
+    @Test func zozoURLRemovesRidButKeepsDid() {
+        let input = "https://zozo.jp/shop/nike/goods-sale/102276808/?did=164480928&rid=200238"
+        let result = URLNormalizer.normalize(input)
+        #expect(result == "https://zozo.jp/shop/nike/goods-sale/102276808?did=164480928")
+    }
+
+    @Test func qoo10URLRemovesShareTrackingParams() {
+        let input = "https://www.qoo10.jp/g/960831016/?rfnv=sns_snsshareredirect@$@&ga_prdlist=share_url"
+        let result = URLNormalizer.normalize(input)
+        #expect(result == "https://www.qoo10.jp/g/960831016")
+    }
+
+    @Test func sheinURLRemovesShareTrackingParams() {
+        let input = "https://m.shein.com/jp/FRIFUL-Women-s-Casual-Vacation-All-Over-Print-Dress-Sundress-p-396123668.html?mallCode=1&imgRatio=3-4&pageFrom=page_super_deals&src_module=women&src_tab_page_id=page_home1774792006147&src_identifier=on=FLEXIBLE_LAYOUT_COMPONENT`cn=superdeals`hz=refresh_0&detailBusinessFrom=0-2"
+        let result = URLNormalizer.normalize(input)
+        #expect(result == "https://m.shein.com/jp/FRIFUL-Women-s-Casual-Vacation-All-Over-Print-Dress-Sundress-p-396123668.html")
+    }
+
+    @Test func temuURLRemovesChannelTrackingParams() {
+        let input = "https://temu.com/jp/channel/lightning-deals.html?same_see=abc123&_x_channel_src=1&jump_from_goods=true&_x_channel_scene=spike&top_goods=1%2C2&refer_page_el_sn=201375&refer_page_name=home&refer_page_id=10005_1774793067559_929pra08gg&refer_page_sn=10005&_x_sessn_id=b68fihrtxv"
+        let result = URLNormalizer.normalize(input)
+        #expect(result == "https://temu.com/jp/channel/lightning-deals.html")
+    }
+
     @Test func utmParamsAllRemoved() {
         let input = "https://example.com/product?utm_source=google&utm_medium=cpc&utm_campaign=summer&utm_content=banner&utm_term=sale"
         let result = URLNormalizer.normalize(input)
@@ -190,5 +232,17 @@ struct URLNormalizerTests {
         #expect(url.contains("color=blue"))
         #expect(!url.contains("ref="))
         #expect(!url.contains("utm_source"))
+    }
+
+    @Test func schemelessURLGetsHTTPSPrepended() {
+        let input = "temu.com/jp/channel/lightning-deals.html?same_see=abc123&_x_sessn_id=xyz"
+        let result = URLNormalizer.normalize(input)
+        #expect(result == "https://temu.com/jp/channel/lightning-deals.html")
+    }
+
+    @Test func trailingJapaneseCommentIsTrimmedBeforeNormalization() {
+        let input = "https://www.udemy.com/course/google-gemini/（サブスク価格ではなく、買い切りの値段を取得）"
+        let result = URLNormalizer.normalize(input)
+        #expect(result == "https://www.udemy.com/course/google-gemini")
     }
 }

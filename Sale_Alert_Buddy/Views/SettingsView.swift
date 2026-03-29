@@ -7,7 +7,7 @@ import UserNotifications
 struct SettingsView: View {
 
     @AppStorage("selectedLanguage") private var selectedLanguage = "en"
-    @State private var notificationStatus: String = ""
+    @State private var notificationAuthorizationStatus: UNAuthorizationStatus = .notDetermined
 
     var body: some View {
         Form {
@@ -15,9 +15,8 @@ struct SettingsView: View {
             notificationsSection
             backgroundRefreshSection
             planSection
-            aboutSection
         }
-        .navigationTitle(String(localized: "settings.title", defaultValue: "Settings"))
+        .navigationTitle(localized("settings.title", default: "Settings"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await refreshNotificationStatus()
@@ -29,25 +28,25 @@ struct SettingsView: View {
     private var languageSection: some View {
         Section {
             Picker(
-                String(localized: "settings.language.current", defaultValue: "Language"),
+                localized("settings.language.current", default: "Language"),
                 selection: $selectedLanguage
             ) {
-                Text(String(localized: "languagePicker.english", defaultValue: "English")).tag("en")
-                Text(String(localized: "languagePicker.japanese", defaultValue: "日本語")).tag("ja")
-                Text(String(localized: "languagePicker.chinese", defaultValue: "中文（简体）")).tag("zh-Hans")
+                Text(localized("languagePicker.english", default: "English")).tag("en")
+                Text(localized("languagePicker.japanese", default: "日本語")).tag("ja")
+                Text(localized("languagePicker.chinese", default: "中文（简体）")).tag("zh-Hans")
             }
             .pickerStyle(.menu)
         } header: {
-            Text(String(localized: "settings.section.language", defaultValue: "Language"))
+            Text(localized("settings.section.language", default: "Language"))
         }
     }
 
     private var notificationsSection: some View {
         Section {
             HStack {
-                Text(String(localized: "settings.notifications.status", defaultValue: "Status"))
+                Text(localized("settings.notifications.status", default: "Status"))
                 Spacer()
-                Text(verbatim: notificationStatus)
+                Text(verbatim: notificationStatusText)
                     .foregroundStyle(.secondary)
             }
 
@@ -56,94 +55,78 @@ struct SettingsView: View {
                     UIApplication.shared.open(url)
                 }
             } label: {
-                Text(String(
-                    localized: "settings.notifications.openSettings",
-                    defaultValue: "Open Notification Settings"
+                Text(localized(
+                    "settings.notifications.openSettings",
+                    default: "Open Notification Settings"
                 ))
             }
         } header: {
-            Text(String(localized: "settings.section.notifications", defaultValue: "Notifications"))
+            Text(localized("settings.section.notifications", default: "Notifications"))
         }
     }
 
     private var backgroundRefreshSection: some View {
         Section {
-            Text(String(
-                localized: "settings.backgroundRefresh.info",
-                defaultValue: "Sale Alert Buddy checks prices when you open the app. Background refresh is best-effort and depends on iOS system conditions."
+            Text(localized(
+                "settings.backgroundRefresh.info",
+                default: "Sale Alert Buddy checks prices when you open the app. Background refresh is best-effort and depends on iOS system conditions."
             ))
             .font(.subheadline)
             .foregroundStyle(.secondary)
         } header: {
-            Text(String(localized: "settings.section.backgroundRefresh", defaultValue: "Background Refresh"))
+            Text(localized("settings.section.backgroundRefresh", default: "Background Refresh"))
         }
     }
 
     private var planSection: some View {
         Section {
             HStack {
-                Text(String(localized: "settings.plan.current", defaultValue: "Current Plan"))
+                Text(localized("settings.plan.current", default: "Current Plan"))
                 Spacer()
-                Text(String(localized: "settings.plan.free", defaultValue: "Free (20 items)"))
+                Text(localized("settings.plan.free", default: "Free (20 items)"))
                     .foregroundStyle(.secondary)
             }
-            Text(String(
-                localized: "settings.plan.upgradeNote",
-                defaultValue: "Upgrade coming soon — track up to 50 items."
+            Text(localized(
+                "settings.plan.upgradeNote",
+                default: "Upgrade coming soon — track up to 50 items."
             ))
             .font(.subheadline)
             .foregroundStyle(.secondary)
         } header: {
-            Text(String(localized: "settings.section.plan", defaultValue: "Plan"))
+            Text(localized("settings.section.plan", default: "Plan"))
         }
     }
-
-    private var aboutSection: some View {
-        Section {
-            HStack {
-                Text(String(localized: "settings.about.version", defaultValue: "Version"))
-                Spacer()
-                Text(verbatim: appVersion)
-                    .foregroundStyle(.secondary)
-            }
-            HStack {
-                Text(String(localized: "settings.about.build", defaultValue: "Build"))
-                Spacer()
-                Text(verbatim: buildNumber)
-                    .foregroundStyle(.secondary)
-            }
-        } header: {
-            Text(String(localized: "settings.section.about", defaultValue: "About"))
-        }
-    }
-
     // MARK: - Helpers
 
-    private var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+    private var notificationStatusText: String {
+        switch notificationAuthorizationStatus {
+        case .authorized:
+            return localized("settings.notifications.authorized", default: "Enabled")
+        case .denied:
+            return localized("settings.notifications.denied", default: "Disabled")
+        case .notDetermined:
+            return localized("settings.notifications.notDetermined", default: "Not set")
+        case .provisional:
+            return localized("settings.notifications.provisional", default: "Provisional")
+        case .ephemeral:
+            return localized("settings.notifications.ephemeral", default: "Ephemeral")
+        @unknown default:
+            return localized("settings.notifications.unknown", default: "Unknown")
+        }
     }
 
-    private var buildNumber: String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
+    private func localized(_ key: String, default defaultValue: String) -> String {
+        guard let path = Bundle.main.path(forResource: selectedLanguage, ofType: "lproj"),
+              let languageBundle = Bundle(path: path) else {
+            return defaultValue
+        }
+        return NSLocalizedString(key, bundle: languageBundle, value: defaultValue, comment: "")
     }
 
     @MainActor
     private func refreshNotificationStatus() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
-        switch settings.authorizationStatus {
-        case .authorized:
-            notificationStatus = String(localized: "settings.notifications.authorized", defaultValue: "Enabled")
-        case .denied:
-            notificationStatus = String(localized: "settings.notifications.denied", defaultValue: "Disabled")
-        case .notDetermined:
-            notificationStatus = String(localized: "settings.notifications.notDetermined", defaultValue: "Not set")
-        case .provisional:
-            notificationStatus = String(localized: "settings.notifications.provisional", defaultValue: "Provisional")
-        case .ephemeral:
-            notificationStatus = String(localized: "settings.notifications.ephemeral", defaultValue: "Ephemeral")
-        @unknown default:
-            notificationStatus = String(localized: "settings.notifications.unknown", defaultValue: "Unknown")
-        }
+        notificationAuthorizationStatus = settings.authorizationStatus
     }
 }
 

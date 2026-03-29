@@ -3,7 +3,8 @@ import CoreData
 
 /// The main screen showing all tracked items.
 ///
-/// Supports pull-to-refresh, sort/filter, swipe actions, and navigation to detail.
+/// Card-style list with category filter bar, pull-to-refresh,
+/// swipe actions, and navigation to detail.
 struct ItemListView: View {
 
     @Environment(\.managedObjectContext) private var viewContext
@@ -14,36 +15,107 @@ struct ItemListView: View {
     ) private var items: FetchedResults<TrackingItem>
 
     @State private var viewModel = ItemListViewModel()
+    @State private var manualCaptureTarget: TrackingItem?
+    @State private var manualCaptureSuccessMessage: String?
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .top) {
-                itemList
-                    .navigationTitle(String(localized: "app.title", defaultValue: "Sale Alert Buddy"))
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            settingsButton
-                        }
-                        ToolbarItemGroup(placement: .topBarTrailing) {
-                            categoryFilterMenu
-                            addButton
-                        }
+            itemList
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        settingsButton
                     }
-                    .refreshable {
-                        await viewModel.checkAll(context: viewContext)
+                    ToolbarItem(placement: .topBarTrailing) {
+                        addButton
                     }
-                    .sheet(isPresented: $viewModel.showingAddSheet) {
-                        AddItemSheet()
-                            .environment(\.managedObjectContext, viewContext)
-                    }
-
-                if viewModel.isChecking {
-                    ProgressView(value: viewModel.checkProgress)
-                        .progressViewStyle(.linear)
-                        .tint(.accentColor)
-                        .frame(maxWidth: .infinity)
                 }
-            }
+                .refreshable {
+                    await viewModel.checkAll(context: viewContext)
+                }
+                .sheet(isPresented: $viewModel.showingAddSheet) {
+                    AddItemSheet()
+                        .environment(\.managedObjectContext, viewContext)
+                }
+                .sheet(item: $manualCaptureTarget) { item in
+                    if let itemURL = URL(string: item.currentUrl) {
+                        InAppPriceCaptureSheet(
+                            initialURL: itemURL,
+                            title: String(
+                                localized: "manualCapture.list.title",
+                                defaultValue: "手動で価格確認"
+                            )
+                        ) { html, pageURL in
+                            let response = await viewModel.handleManualCapture(
+                                for: item,
+                                html: html,
+                                pageURL: pageURL,
+                                context: viewContext
+                            )
+                            if response.shouldDismiss {
+                                manualCaptureSuccessMessage = response.message
+                            }
+                            return response
+                        }
+                    }
+                }
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    VStack(spacing: 0) {
+                        if viewModel.isChecking {
+                            ProgressView(value: viewModel.checkProgress)
+                                .progressViewStyle(.linear)
+                                .tint(.accentColor)
+                        }
+                        CategoryBarView(
+                            categories: viewModel.sortedCategories(from: Array(items)),
+                            selectedCategory: $viewModel.selectedCategory,
+                            onAdd: { viewModel.startAddingCategory() },
+                            onEdit: { viewModel.startEditingCategory($0) },
+                            onDelete: { viewModel.startDeletingCategory($0) }
+                        )
+                        Divider()
+                    }
+                    .background(.bar)
+                }
+                .alert("list.category.add.title", isPresented: $viewModel.showingCategoryAdd) {
+                    TextField("list.category.name.placeholder", text: $viewModel.categoryNameInput)
+                    Button("action.cancel", role: .cancel) { viewModel.cancelCategoryAction() }
+                    Button("list.category.add") { viewModel.confirmAddCategory() }
+                }
+                .alert("list.category.edit.title", isPresented: $viewModel.showingCategoryEdit) {
+                    TextField("list.category.name.placeholder", text: $viewModel.categoryNameInput)
+                    Button("action.cancel", role: .cancel) { viewModel.cancelCategoryAction() }
+                    Button("list.category.edit") {
+                        viewModel.confirmRenameCategory(items: Array(items), context: viewContext)
+                    }
+                }
+                .alert("list.category.delete.title", isPresented: $viewModel.showingCategoryDeleteConfirm) {
+                    Button("action.cancel", role: .cancel) {
+                        viewModel.categoryDeleteTarget = nil
+                        viewModel.showingCategoryDeleteConfirm = false
+                    }
+                    Button("list.category.delete", role: .destructive) {
+                        viewModel.confirmDeleteCategory(items: Array(items), context: viewContext)
+                    }
+                } message: {
+                    Text("list.category.delete.confirm")
+                }
+                .alert(
+                    String(
+                        localized: "manualCapture.success.title",
+                        defaultValue: "価格を更新しました"
+                    ),
+                    isPresented: Binding(
+                        get: { manualCaptureSuccessMessage != nil },
+                        set: { if !$0 { manualCaptureSuccessMessage = nil } }
+                    )
+                ) {
+                    Button("action.ok", role: .cancel) {
+                        manualCaptureSuccessMessage = nil
+                    }
+                } message: {
+                    Text(manualCaptureSuccessMessage ?? "")
+                }
         }
         .task {
             _ = await NotificationService.shared.requestPermission()
@@ -55,7 +127,7 @@ struct ItemListView: View {
         }
     }
 
-    // MARK: - Sub-views
+    // MARK: - Item List
 
     @ViewBuilder
     private var itemList: some View {
@@ -64,17 +136,42 @@ struct ItemListView: View {
         } else {
             List {
                 ForEach(filteredItems) { item in
-                    NavigationLink(destination: ItemDetailView(item: item)) {
-                        ItemCardView(item: item)
+                    VStack(alignment: .trailing, spacing: 8) {
+                        ZStack {
+                            // Invisible NavigationLink hides the disclosure chevron
+                            NavigationLink(destination: ItemDetailView(item: item)) {
+                                EmptyView()
+                            }
+                            .opacity(0)
+
+                            ItemCardView(item: item)
+                        }
+
+                        if viewModel.shouldOfferManualCheck(for: item) {
+                            Button {
+                                manualCaptureTarget = item
+                            } label: {
+                                Label(
+                                    String(
+                                        localized: "manualCapture.list.button",
+                                        defaultValue: "手動で確認"
+                                    ),
+                                    systemImage: "hand.tap"
+                                )
+                                .font(.footnote.weight(.semibold))
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        }
                     }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button(role: .destructive) {
                             viewModel.deleteItem(item, context: viewContext)
                         } label: {
-                            Label(
-                                String(localized: "action.delete", defaultValue: "Delete"),
-                                systemImage: "trash"
-                            )
+                            Label("action.delete", systemImage: "trash")
                         }
                     }
                     .swipeActions(edge: .leading) {
@@ -82,23 +179,28 @@ struct ItemListView: View {
                     }
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
         }
     }
 
+    // MARK: - Empty State
+
     private var emptyStateView: some View {
         ContentUnavailableView(
-            String(localized: "list.empty.title", defaultValue: "No items yet"),
+            "list.empty.title",
             systemImage: "cart.badge.plus",
-            description: Text(
-                String(localized: "list.empty.description", defaultValue: "Tap + to add a product URL.")
-            )
+            description: Text("list.empty.description")
         )
     }
+
+    // MARK: - Toolbar
 
     private var settingsButton: some View {
         NavigationLink(destination: SettingsView()) {
             Image(systemName: "gearshape")
-                .accessibilityLabel(String(localized: "settings.title", defaultValue: "Settings"))
+                .accessibilityLabel(Text("settings.title"))
         }
     }
 
@@ -107,43 +209,12 @@ struct ItemListView: View {
             viewModel.showingAddSheet = true
         } label: {
             Image(systemName: "plus")
-                .accessibilityLabel(String(localized: "action.addItem", defaultValue: "Add Item"))
+                .fontWeight(.semibold)
+                .accessibilityLabel(Text("action.addItem"))
         }
     }
 
-    private var categoryFilterMenu: some View {
-        Menu {
-            Button {
-                viewModel.selectedCategory = nil
-            } label: {
-                Label(
-                    String(localized: "list.category.all", defaultValue: "All Categories"),
-                    systemImage: viewModel.selectedCategory == nil ? "checkmark" : "line.3.horizontal.decrease.circle"
-                )
-            }
-
-            if !availableCategories.isEmpty {
-                Divider()
-                ForEach(availableCategories, id: \.self) { category in
-                    Button {
-                        viewModel.selectedCategory = category
-                    } label: {
-                        Label(
-                            title: { Text(verbatim: category) },
-                            icon: {
-                                if viewModel.selectedCategory == category {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-        } label: {
-            Image(systemName: viewModel.selectedCategory == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
-                .accessibilityLabel(String(localized: "list.category.filter", defaultValue: "Filter by Category"))
-        }
-    }
+    // MARK: - Swipe Actions
 
     @ViewBuilder
     private func pauseResumeAction(for item: TrackingItem) -> some View {
@@ -151,20 +222,14 @@ struct ItemListView: View {
             Button {
                 viewModel.resumeItem(item, context: viewContext)
             } label: {
-                Label(
-                    String(localized: "action.resume", defaultValue: "Resume"),
-                    systemImage: "play.circle"
-                )
+                Label("action.resume", systemImage: "play.circle")
             }
             .tint(.green)
         } else {
             Button {
                 viewModel.pauseItem(item, context: viewContext)
             } label: {
-                Label(
-                    String(localized: "action.pause", defaultValue: "Pause"),
-                    systemImage: "pause.circle"
-                )
+                Label("action.pause", systemImage: "pause.circle")
             }
             .tint(.orange)
         }
@@ -172,10 +237,6 @@ struct ItemListView: View {
 
     // MARK: - Filtering
 
-    /// Applies the active `filterStatus` and `sortOrder` to the fetched results.
-    ///
-    /// Note: Core Data `@FetchRequest` owns the primary sort (createdAt desc).
-    /// Secondary sorts applied here are in-memory and remain reactive via SwiftUI.
     private var filteredItems: [TrackingItem] {
         let statusFiltered: [TrackingItem]
         switch viewModel.filterStatus {
@@ -196,7 +257,7 @@ struct ItemListView: View {
 
         switch viewModel.sortOrder {
         case .createdDesc:
-            return categoryFiltered  // already sorted by Core Data fetch request
+            return categoryFiltered
         case .priceDropDesc:
             return categoryFiltered.sorted { ($0.dropPercentage ?? 0) > ($1.dropPercentage ?? 0) }
         case .lastCheckedAsc:

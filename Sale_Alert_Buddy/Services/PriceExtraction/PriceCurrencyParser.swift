@@ -9,7 +9,7 @@ import Foundation
 /// - GBP: "£19.99", "GBP 19.99"
 struct PriceCurrencyParser {
 
-    static func parse(_ text: String) -> (price: Decimal, currency: String)? {
+    nonisolated static func parse(_ text: String) -> (price: Decimal, currency: String)? {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return nil }
 
@@ -23,7 +23,7 @@ struct PriceCurrencyParser {
 
     // MARK: - JPY
 
-    private static func parseJPY(_ text: String) -> (price: Decimal, currency: String)? {
+    private nonisolated static func parseJPY(_ text: String) -> (price: Decimal, currency: String)? {
         // Matches: ¥1,980 | ￥1,980 | 1,980円 | 1980円 | ¥1980
         let pattern = #"[¥￥]([\d,]+)|([\d,]+)円"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
@@ -47,7 +47,7 @@ struct PriceCurrencyParser {
 
     // MARK: - Symbol-based currencies (USD, EUR, GBP)
 
-    private static func parseSymbolCurrency(_ text: String) -> (price: Decimal, currency: String)? {
+    private nonisolated static func parseSymbolCurrency(_ text: String) -> (price: Decimal, currency: String)? {
         // Matches currency symbol followed by a number
         // Symbols: $ USD, € EUR, £ GBP
         let pattern = #"([$€£])\s*([\d,]+(?:[.,]\d+)?)"#
@@ -69,7 +69,7 @@ struct PriceCurrencyParser {
 
     // MARK: - Code-based currencies (USD, EUR, GBP)
 
-    private static func parseCodeCurrency(_ text: String) -> (price: Decimal, currency: String)? {
+    private nonisolated static func parseCodeCurrency(_ text: String) -> (price: Decimal, currency: String)? {
         let codes = ["USD", "EUR", "GBP"]
         for code in codes {
             if let result = parseCurrencyCode(code, in: text) {
@@ -79,7 +79,7 @@ struct PriceCurrencyParser {
         return nil
     }
 
-    private static func parseCurrencyCode(_ code: String, in text: String) -> (price: Decimal, currency: String)? {
+    private nonisolated static func parseCurrencyCode(_ code: String, in text: String) -> (price: Decimal, currency: String)? {
         // Try code-prefix form: "USD 19.99"
         let prefixPattern = #"(?:^|(?<=\s))"# + code + #"\s*([\d,]+(?:[.,]\d+)?)(?:\s|$)"#
         if let regex = try? NSRegularExpression(pattern: prefixPattern),
@@ -107,7 +107,7 @@ struct PriceCurrencyParser {
 
     // MARK: - Helpers
 
-    private static func currencyForSymbol(_ symbol: String) -> String? {
+    private nonisolated static func currencyForSymbol(_ symbol: String) -> String? {
         switch symbol {
         case "$": return "USD"
         case "€": return "EUR"
@@ -121,7 +121,7 @@ struct PriceCurrencyParser {
     /// For JPY: commas are thousands separators, no decimal point.
     /// For EUR with European format (e.g. "29,99"): treats trailing comma+2 digits as decimal.
     /// For USD/GBP: period is decimal separator, comma is thousands separator.
-    private static func parseAmount(_ raw: String, currency: String) -> Decimal? {
+    private nonisolated static func parseAmount(_ raw: String, currency: String) -> Decimal? {
         // Detect European decimal format: exactly two digits after the final comma
         // and no period present — e.g. "29,99" means 29.99
         let isEuropeanDecimal: Bool

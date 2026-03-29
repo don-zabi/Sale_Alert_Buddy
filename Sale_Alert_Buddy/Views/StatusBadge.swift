@@ -11,7 +11,7 @@ struct StatusBadge: View {
     let status: ItemStatus
 
     var body: some View {
-        Text(verbatim: status.displayName)
+        Text(status.displayKey)
             .font(.caption2)
             .fontWeight(.semibold)
             .foregroundStyle(.white)

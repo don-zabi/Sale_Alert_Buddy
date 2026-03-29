@@ -20,6 +20,12 @@ actor HTMLFetcher {
         "AppleWebKit/605.1.15 (KHTML, like Gecko) " +
         "Version/17.0 Mobile/15E148 Safari/604.1"
 
+    static let defaultHeaders: [String: String] = [
+        "User-Agent": mobileUserAgent,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7"
+    ]
+
     /// - Parameter session: URLSession to use. Defaults to a session with redirect guard.
     ///   Pass a custom session in tests to inject mock URLProtocols.
     init(session: URLSession = HTMLFetcher.makeDefaultSession()) {
@@ -35,7 +41,7 @@ actor HTMLFetcher {
         let config = URLSessionConfiguration.default
         config.httpMaximumConnectionsPerHost = 1
         config.timeoutIntervalForRequest = timeout
-        config.httpAdditionalHeaders = ["User-Agent": mobileUserAgent]
+        config.httpAdditionalHeaders = defaultHeaders
         let delegate = RedirectGuard(maxRedirects: maxRedirects)
         return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
     }
@@ -50,7 +56,9 @@ actor HTMLFetcher {
     /// - Returns: A `FetchResult` with html, HTTP status, final URL (after redirects), and duration.
     func fetch(url: URL, timeout: TimeInterval = 15) async throws -> FetchResult {
         var request = URLRequest(url: url)
-        request.setValue(HTMLFetcher.mobileUserAgent, forHTTPHeaderField: "User-Agent")
+        for (header, value) in HTMLFetcher.defaultHeaders {
+            request.setValue(value, forHTTPHeaderField: header)
+        }
         request.timeoutInterval = timeout
 
         let clock = ContinuousClock()

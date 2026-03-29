@@ -238,6 +238,75 @@ struct ItemDetailViewModelTests {
         #expect(!vm.statusDescription.isEmpty)
     }
 
+    // MARK: - memo editing
+
+    @Test("startEditingMemo seeds memo input from item")
+    func startEditingMemoSeedsInput() throws {
+        let ctx = TestPersistence.newContext()
+        var vm: ItemDetailViewModel!
+        ctx.performAndWait {
+            let item = TrackingItem.create(in: ctx)
+            item.domain = "example.com"
+            item.baselinePriceDecimal = 100
+            item.baselineCurrency = "JPY"
+            item.memo = "gift idea"
+            vm = ItemDetailViewModel(item: item)
+        }
+
+        vm.startEditingMemo()
+
+        #expect(vm.showingMemoEdit == true)
+        #expect(vm.memoInput == "gift idea")
+    }
+
+    @Test("saveMemoEdit persists trimmed memo")
+    func saveMemoEditPersistsMemo() throws {
+        let ctx = TestPersistence.newContext()
+        var vm: ItemDetailViewModel!
+        var item: TrackingItem!
+        try ctx.performAndWait {
+            item = TrackingItem.create(in: ctx)
+            item.domain = "example.com"
+            item.baselinePriceDecimal = 100
+            item.baselineCurrency = "JPY"
+            try ctx.save()
+            vm = ItemDetailViewModel(item: item)
+        }
+
+        vm.memoInput = "  restock watch  "
+        vm.showingMemoEdit = true
+
+        ctx.performAndWait {
+            vm.saveMemoEdit(context: ctx)
+        }
+
+        #expect(item.memo == "restock watch")
+        #expect(vm.showingMemoEdit == false)
+        #expect(vm.memoInput.isEmpty)
+    }
+
+    @Test("clearMemo removes saved memo")
+    func clearMemoRemovesSavedMemo() throws {
+        let ctx = TestPersistence.newContext()
+        var vm: ItemDetailViewModel!
+        var item: TrackingItem!
+        try ctx.performAndWait {
+            item = TrackingItem.create(in: ctx)
+            item.domain = "example.com"
+            item.baselinePriceDecimal = 100
+            item.baselineCurrency = "JPY"
+            item.memo = "limited stock"
+            try ctx.save()
+            vm = ItemDetailViewModel(item: item)
+        }
+
+        ctx.performAndWait {
+            vm.clearMemo(context: ctx)
+        }
+
+        #expect(item.memo == nil)
+    }
+
     // MARK: - pause / resume
 
     @Test("pause sets item status to paused")

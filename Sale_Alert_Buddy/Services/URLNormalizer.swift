@@ -3,7 +3,7 @@ import Foundation
 struct URLNormalizer {
 
     /// Tracking query parameter names that should be stripped from URLs.
-    private static let trackingParams: Set<String> = [
+    private nonisolated(unsafe) static let trackingParams: Set<String> = [
         "fbclid",
         "ref",
         "ref_",
@@ -11,19 +11,44 @@ struct URLNormalizer {
         "msclkid",
         "sc_i",
         "scid",
+        "s-id",
         "dib",
         "dib_tag",
-        "source_location"
+        "source_location",
+        "nodeeplink",
+        "wadd",
+        "rid",
+        "rfnv",
+        "ga_prdlist",
+        "mallCode",
+        "imgRatio",
+        "pageFrom",
+        "src_module",
+        "src_tab_page_id",
+        "src_identifier",
+        "detailBusinessFrom",
+        "same_see",
+        "_x_channel_src",
+        "jump_from_goods",
+        "_x_channel_scene",
+        "top_goods",
+        "refer_page_el_sn",
+        "refer_page_name",
+        "refer_page_id",
+        "refer_page_sn",
+        "_x_sessn_id"
     ]
 
     /// Returns a normalized, tracking-free version of the URL string,
     /// or nil if the input is not a valid absolute HTTP(S) URL or targets a
     /// private/loopback address (SSRF prevention).
-    static func normalize(_ urlString: String) -> String? {
-        // Reject excessively long input before any parsing
-        guard urlString.count <= 2048 else { return nil }
+    nonisolated static func normalize(_ urlString: String) -> String? {
+        let preprocessed = preprocess(urlString)
+        guard !preprocessed.isEmpty, preprocessed.count <= 2048 else { return nil }
 
-        guard var components = URLComponents(string: urlString) else { return nil }
+        let schemed = addHTTPSIfNeeded(to: preprocessed)
+        guard schemed.count <= 2048,
+              var components = URLComponents(string: schemed) else { return nil }
 
         // Only accept http and https
         guard let scheme = components.scheme?.lowercased(),
@@ -73,6 +98,41 @@ struct URLNormalizer {
 
     // MARK: - Private Network Detection
 
+    private nonisolated static func preprocess(_ urlString: String) -> String {
+        var sanitized = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        sanitized = sanitized.trimmingCharacters(in: CharacterSet(charactersIn: "<>\"'"))
+
+        if let firstWhitespace = sanitized.firstIndex(where: \.isWhitespace) {
+            sanitized = String(sanitized[..<firstWhitespace])
+        }
+
+        if let commentIndex = sanitized.firstIndex(of: "（") {
+            sanitized = String(sanitized[..<commentIndex])
+        }
+
+        sanitized = sanitized.replacingOccurrences(of: "`", with: "%60")
+
+        return sanitized.trimmingCharacters(in: CharacterSet(charactersIn: "。、,"))
+    }
+
+    private nonisolated static func addHTTPSIfNeeded(to urlString: String) -> String {
+        guard !hasHTTPScheme(urlString), looksLikeHostPath(urlString) else {
+            return urlString
+        }
+        return "https://\(urlString)"
+    }
+
+    private nonisolated static func hasHTTPScheme(_ urlString: String) -> Bool {
+        let lowercased = urlString.lowercased()
+        return lowercased.hasPrefix("http://") || lowercased.hasPrefix("https://")
+    }
+
+    private nonisolated static func looksLikeHostPath(_ urlString: String) -> Bool {
+        guard !urlString.hasPrefix("/") else { return false }
+        let pattern = #"^[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?::\d+)?(?:[/?#].*)?$"#
+        return urlString.range(of: pattern, options: .regularExpression) != nil
+    }
+
     /// Returns true if `host` refers to localhost, loopback, or a private/link-local range.
     ///
     /// Covers:
@@ -80,7 +140,7 @@ struct URLNormalizer {
     /// - Private IPv4:  `10.x.x.x`, `172.16–31.x.x`, `192.168.x.x`
     /// - Link-local:    `169.254.x.x`, `fe80::/10`
     /// - Multicast:     `224.x.x.x – 239.x.x.x`
-    private static func isPrivateHost(_ host: String) -> Bool {
+    private nonisolated static func isPrivateHost(_ host: String) -> Bool {
         // Loopback / special hostnames
         if host == "localhost" || host == "0.0.0.0" || host == "::1" { return true }
 

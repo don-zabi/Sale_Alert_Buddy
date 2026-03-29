@@ -1,0 +1,49 @@
+HTTP/1.1 302 Found
+Date: Sun, 29 Mar 2026 15:48:06 GMT
+Content-Type: text/html; charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Server: cloudflare
+Location: /jp/risk/challenge?captcha_type=903&redirection=https%3A%2F%2Fm.shein.com%2Fjp%2FFRIFUL-Women-s-Casual-Vacation-All-Over-Print-Dress-Sundress-p-396123668.html%3FmallCode%3D1%26imgRatio%3D3-4%26pageFrom%3Dpage_super_deals%26src_module%3Dwomen%26src_tab_page_id%3Dpage_home1774792006147%26src_identifier%3Don%3DFLEXIBLE_LAYOUT_COMPONENTcn%3Dsuperdealshz%3Drefresh_0jc%3DthriftyFind_1767%2C2040%2C1930%2C12472%2C3287%2C2216%2C2037%2C2036%2C1773%2C1766%2C2039%2C4437%2C3088%2C3618ps%3D5_1_3%26detailBusinessFrom%3D0-2&risk-id=E4786350977385867651
+CF-Ray: 9e40044eeeabf4a6-NRT
+CF-Cache-Status: DYNAMIC
+Via-Shein-Gateway: c-shein-pwa!shein-pwa-vue3
+header-cmdb-app-name: shein_pwa
+header-cmdb-name: shein_pwa_uswest6_prod_vue3
+server-timing: g;dur=415
+x-gw-traceid: a7a8ca5f00ee68a8
+x-terminal-config: 1_home-navigation_337_1397,1_trade-web_8_743,1_ClientInfa_9_1100,1_customer_5_269,1_rsr_47_1974,0_kd-test01_8_2564,1_test0702_0_344,1_zebra-migration_9_64,1_image_83_620,1_test-wisdom-02_113_91,1_detail_0_1486,1_test-wisdom-01_17_125,1_sec-sdks-demotion_28_1928,0_kol-c-homePage_0_105,1_cart_58_2950,1_remote-resources_354_661,1_perf_399_1215,1_store-sales-channel_77_2801,1_wish_3_1517,1_market_382_623,1_sales-channel_0_76,1_checkout_109_1670,1_service_126_2869,1_USER-GROWTH_12_72,1_ClientInfra_371_1590,1_metrics_14474_964,1_security_550_181,1_guoguo-test_206_2689,1_H5WebContainer_901_1990,1_common_10320_1863,1_trade_84_2708,1_user_55_1037,1_search-recommend_114_1625,1_detail-list_232_585,1_cccx-pop_22060_729
+Set-Cookie: _cfuvid=K1tilOZHbJ2SOcSnMokV9iiKJrrAYt2AGe4kUES.zwg-1774799286133-0.0.1.1-604800000; path=/; domain=.shein.com; HttpOnly; Secure; SameSite=None
+
+HTTP/1.1 200 OK
+Date: Sun, 29 Mar 2026 15:48:06 GMT
+Content-Type: text/html; charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Server: cloudflare
+CF-Ray: 9e400452bee1f4a6-NRT
+CF-Cache-Status: DYNAMIC
+Cache-Control: no-cache, max-age=0, no-store, must-revalidate
+Set-Cookie: language=jp; expires=Sun, 05 Apr 2026 15:48:06 GMT; max-age=604800; path=/; domain=shein.com
+Set-Cookie: AT=MDEwMDE.eyJiIjo3LCJnIjoxNzc0Nzk5Mjg2LCJyIjoiZHEzSzh1IiwidCI6MX0.f731d2049eb58b83; expires=Tue, 28 Apr 2026 15:48:06 GMT; max-age=2592000; path=/; HttpOnly; secure
+Set-Cookie: armorUuid=2026032923480688780b38a131efbbc75e688f3fe646a90039ab28a68bd57b00; expires=Mon, 03-May-2027 15:48:06 GMT; max-age=34560000; path=/; domain=shein.com
+Set-Cookie: sessionID_shein_m_pwa=s%3ASrNg1tc8u6_-avv-IQceILDamLm8uwQF.5FILbwhwamAZMa4crCqntEl0gnvdD5C%2B%2Blwps5Ni2yQ; expires=Tue, 31-Mar-2026 03:48:06 GMT; max-age=129600; path=/; HttpOnly; secure
+Set-Cookie: sessionID_shein_m_pwa=s%3ASrNg1tc8u6_-avv-IQceILDamLm8uwQF.5FILbwhwamAZMa4crCqntEl0gnvdD5C%2B%2Blwps5Ni2yQ; expires=Tue, 31 Mar 2026 03:48:06 GMT; path=/; HttpOnly; secure
+Strict-Transport-Security: max-age=7776000000; includeSubDomains
+Vary: accept-encoding
+Content-Security-Policy: frame-ancestors *.shein.com https://www.messenger.com https://www.facebook.com https://m.shein.com https://m.shein.com.co https://m.shein.com.mx https://m.shein.tw https://m.shein.com.hk https://m.shein.com.vn https://m.shein.in https://m.shein.se https://m.shein.co.uk
+Referrer-Policy: no-referrer-when-downgrade
+Via-Shein-Gateway: c-shein-pwa!shein-pwa-vue3
+X-Content-Type-Options: nosniff
+X-DNS-Prefetch-Control: on
+X-Download-Options: noopen
+X-Frame-Options: ALLOW-FROM https://www.messenger.com
+X-XSS-Protection: 1; mode=block
+header-cmdb-app-name: shein_pwa
+header-cmdb-name: shein_pwa_uswest6_prod_vue3
+server-timing: g;dur=33
+x-ad-flag-update: 8FkZa3NuCnoO+IBsqSDbVYWKNR7YXRoarfY1Hbp53umZ0k+h6+rK67aH0c1E5efGgWYq61YJe9rvWC5xPj7ZVVYoP3i9GVpBfVkWfa8EsrsGa2KgaixOSZmJfGKy6YI874yU0pb2l85B3RSMhSMlbQ==
+x-anti: RjE2QnwxNzc0Nzk5Mjg2Mjk1fEQ3QkJfQTU3OF85RDA0XzRBM0NfQTM0OUJEOTNFQjBC
+x-gw-traceid: b56adaee2658fb51
+x-terminal-config: 1_home-navigation_337_862,1_trade-web_8_401,1_ClientInfa_9_1848,1_customer_5_2554,1_rsr_47_2327,0_kd-test01_8_2779,1_test0702_0_851,1_zebra-migration_9_2858,1_image_83_992,1_test-wisdom-02_113_1828,1_detail_0_209,1_test-wisdom-01_17_685,1_sec-sdks-demotion_28_2784,0_kol-c-homePage_0_2657,1_cart_58_1868,1_remote-resources_354_1078,1_perf_399_324,1_store-sales-channel_77_121,1_wish_3_590,1_market_382_841,1_sales-channel_0_1779,1_checkout_109_2967,1_service_126_2325,1_USER-GROWTH_12_1689,1_ClientInfra_371_1224,1_metrics_14474_110,1_security_550_803,1_guoguo-test_206_2897,1_H5WebContainer_901_66,1_common_10320_407,1_trade_84_1251,1_user_55_1158,1_search-recommend_114_134,1_detail-list_232_401,1_cccx-pop_22060_1392
+

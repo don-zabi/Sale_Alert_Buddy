@@ -386,6 +386,24 @@ struct DataAttributeExtractorTests {
         #expect(results.first!.currency == "EUR")
     }
 
+    @Test func prefersTaxInclusiveDataAttribute() throws {
+        let html = """
+        <html><body>
+        <li
+            data-shade-price="¥4,400"
+            data-shade-tax-price="¥4,840"
+        >M·A·C</li>
+        </body></html>
+        """
+        let doc = makeDocument(html)
+        let extractor = DataAttributeExtractor()
+        let results = extractor.extract(from: doc)
+        #expect(!results.isEmpty)
+        #expect(results.first!.price == Decimal(4840))
+        #expect(results.first!.currency == "JPY")
+        #expect(results.first!.confidence == 0.82)
+    }
+
     @Test func returnsEmptyWhenNoDataAttributes() throws {
         let html = "<html><body><span class=\"price\">¥1,980</span></body></html>"
         let doc = makeDocument(html)
@@ -404,6 +422,101 @@ struct DataAttributeExtractorTests {
         let extractor = DataAttributeExtractor()
         let results = extractor.extract(from: doc)
         #expect(results.isEmpty)
+    }
+}
+
+// MARK: - EmbeddedJSONExtractor Tests
+
+struct EmbeddedJSONExtractorTests {
+
+    private func makeDocument(_ html: String) -> Document {
+        (try? SwiftSoup.parse(html)) ?? Document("")
+    }
+
+    @Test func extractsNextDataPriceWithCurrencyCode() throws {
+        let html = """
+        <html><head>
+        <script id="__NEXT_DATA__" type="application/json">
+        {
+          "props": {
+            "pageProps": {
+              "product": {
+                "prices": {
+                  "base": {
+                    "currency": { "code": "JPY", "symbol": "¥" },
+                    "value": 12900
+                  }
+                }
+              }
+            }
+          }
+        }
+        </script>
+        </head><body><h1>ハイブリッドダウンパーカ</h1></body></html>
+        """
+
+        let doc = makeDocument(html)
+        let extractor = EmbeddedJSONExtractor()
+        let results = extractor.extract(from: doc)
+
+        #expect(!results.isEmpty)
+        #expect(results.first!.price == Decimal(12900))
+        #expect(results.first!.currency == "JPY")
+        #expect(results.first!.extractMethod == .embeddedJSON)
+    }
+
+    @Test func extractsJavascriptAssignedPriceWhenPageSuggestsJPY() throws {
+        let html = """
+        <html><head>
+        <script>
+        var pageData = {
+          "items": {
+            "price": "222000",
+            "productName": "Yahoo Auctions Item"
+          }
+        };
+        </script>
+        </head><body><p>税込</p></body></html>
+        """
+
+        let doc = makeDocument(html)
+        let extractor = EmbeddedJSONExtractor()
+        let results = extractor.extract(from: doc)
+
+        #expect(!results.isEmpty)
+        #expect(results.first!.price == Decimal(222000))
+        #expect(results.first!.currency == "JPY")
+    }
+
+    @Test func prefersCurrentPriceOverUsualPrice() throws {
+        let html = """
+        <html><head>
+        <script id="__NEXT_DATA__" type="application/json">
+        {
+          "props": {
+            "pageProps": {
+              "itemDetails": {
+                "itemPageInfo": {
+                  "itemInfo": {
+                    "currentPrice": 5400,
+                    "usualPrice": 10800
+                  }
+                }
+              }
+            }
+          }
+        }
+        </script>
+        </head><body><p>税込</p></body></html>
+        """
+
+        let doc = makeDocument(html)
+        let extractor = EmbeddedJSONExtractor()
+        let results = extractor.extract(from: doc)
+
+        #expect(!results.isEmpty)
+        #expect(results.first!.price == Decimal(5400))
+        #expect(results.first!.currency == "JPY")
     }
 }
 
@@ -561,6 +674,35 @@ struct PriceExtractionPipelineTests {
         #expect(result != nil)
         #expect(result!.result.currency == "GBP")
         #expect(result!.method == .htmlPattern)
+    }
+
+    @Test func pipelineFailsOverToEmbeddedJSON() {
+        let html = """
+        <html><head>
+        <script id="__NEXT_DATA__" type="application/json">
+        {
+          "props": {
+            "pageProps": {
+              "product": {
+                "prices": {
+                  "base": {
+                    "currency": { "code": "JPY" },
+                    "value": 12900
+                  }
+                }
+              }
+            }
+          }
+        }
+        </script>
+        </head><body><h1>UNIQLO Product</h1></body></html>
+        """
+        let pipeline = PriceExtractionPipeline()
+        let result = pipeline.extract(from: html)
+        #expect(result != nil)
+        #expect(result!.result.price == Decimal(12900))
+        #expect(result!.result.currency == "JPY")
+        #expect(result!.method == .embeddedJSON)
     }
 
     @Test func pipelineReturnsNilWhenNoPriceFound() {

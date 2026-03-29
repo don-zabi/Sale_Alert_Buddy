@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 enum NotificationConditionType: Int16, CaseIterable, Identifiable {
     case percentage = 0
@@ -7,14 +7,26 @@ enum NotificationConditionType: Int16, CaseIterable, Identifiable {
 
     var id: Int16 { rawValue }
 
-    var displayName: String {
+    var displayName: LocalizedStringKey {
         switch self {
         case .percentage:
-            return String(localized: "notify.condition.percentage", defaultValue: "Percent Drop")
+            return "notify.condition.percentage"
         case .amount:
-            return String(localized: "notify.condition.amount", defaultValue: "Amount Drop")
+            return "notify.condition.amount"
         case .targetPrice:
-            return String(localized: "notify.condition.targetPrice", defaultValue: "Price At Or Below")
+            return "notify.condition.targetPrice"
+        }
+    }
+
+    /// Short label for compact segmented controls.
+    var shortLabel: LocalizedStringKey {
+        switch self {
+        case .percentage:
+            return "notify.condition.short.percentage"
+        case .amount:
+            return "notify.condition.short.amount"
+        case .targetPrice:
+            return "notify.condition.short.targetPrice"
         }
     }
 

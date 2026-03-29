@@ -118,6 +118,83 @@ extension TrackingItem {
         productTitle ?? domain
     }
 
+    /// Human-readable site/brand name derived from the effective domain.
+    var siteDisplayName: String {
+        let d = effectiveDomain
+        let known: [String: String] = [
+            // Amazon (including short-link domains stored on older items)
+            "amazon.co.jp":                  "Amazon",
+            "amazon.com":                    "Amazon",
+            "amzn.asia":                     "Amazon",
+            "amzn.to":                       "Amazon",
+            "a.co":                          "Amazon",
+            // Mercari
+            "mercari.com":                   "Mercari",
+            "jp.mercari.com":                "Mercari",
+            // Rakuten
+            "rakuten.co.jp":                 "楽天市場",
+            "item.rakuten.co.jp":            "楽天市場",
+            // Yahoo
+            "shopping.yahoo.co.jp":          "Yahoo!ショッピング",
+            "store.shopping.yahoo.co.jp":    "Yahoo!ショッピング",
+            "auctions.yahoo.co.jp":          "Yahoo!オークション",
+            "paypayfleamarket.yahoo.co.jp":  "PayPayフリマ",
+            "yahoo.co.jp":                   "Yahoo! Japan",
+            // Others
+            "yodobashi.com":                 "ヨドバシカメラ",
+            "kakaku.com":                    "価格.com",
+            "zozo.jp":                       "ZOZOTOWN",
+            "zozotown.com":                  "ZOZOTOWN",
+            "uniqlo.com":                    "UNIQLO",
+            "ebay.com":                      "eBay",
+            "qoo10.jp":                      "Qoo10",
+            "m.qoo10.jp":                    "Qoo10",
+            "wowma.jp":                      "au PAY マーケット",
+            "yamada-denkiweb.com":           "ヤマダウェブコム",
+            "biccamera.com":                 "ビックカメラ",
+            "bic-camera.com":                "ビックカメラ",
+            "yslb.jp":                       "YSL Beauty",
+            "maccosmetics.jp":               "M·A·C",
+            "m.maccosmetics.jp":             "M·A·C",
+            "udemy.com":                     "Udemy",
+            "m.shein.com":                   "SHEIN",
+            "shein.com":                     "SHEIN",
+            "temu.com":                      "Temu",
+        ]
+        if let name = known[d] { return name }
+        // Fallback: capitalise the first label (e.g. "rakuten" → "Rakuten")
+        let first = d.split(separator: ".").first.map(String.init) ?? d
+        return first.prefix(1).uppercased() + first.dropFirst()
+    }
+
+    /// URL for the site's favicon via Google's favicon service.
+    /// Uses the effective (resolved) domain so short-link items get the real site's favicon.
+    var faviconURL: URL? {
+        // For known short-link domains, force the lookup to the real site domain
+        let shortLinkMap: [String: String] = [
+            "amzn.asia": "amazon.co.jp",
+            "amzn.to":   "amazon.com",
+            "a.co":      "amazon.com",
+        ]
+        let d = effectiveDomain
+        let lookupDomain = shortLinkMap[d] ?? d
+        guard !lookupDomain.isEmpty else { return nil }
+        return URL(string: "https://www.google.com/s2/favicons?domain=\(lookupDomain)&sz=32")
+    }
+
+    /// The most accurate domain available: resolved URL host → stored domain.
+    private var effectiveDomain: String {
+        let raw: String
+        if let resolved = resolvedUrl,
+           let host = URL(string: resolved)?.host,
+           !host.isEmpty {
+            raw = host
+        } else {
+            raw = domain
+        }
+        return raw.hasPrefix("www.") ? String(raw.dropFirst(4)) : raw
+    }
+
     var itemCategory: String? {
         get {
             guard let category else { return nil }
@@ -141,6 +218,14 @@ extension TrackingItem {
         let drop = baselinePriceDecimal - latest
         guard drop > 0 else { return nil }
         return Double(truncating: (drop / baselinePriceDecimal * 100) as NSDecimalNumber)
+    }
+
+    /// Percentage by which the latest price exceeds the baseline (positive = price went up).
+    var risePercentage: Double? {
+        guard let latest = latestPriceDecimal, baselinePriceDecimal > 0 else { return nil }
+        let rise = latest - baselinePriceDecimal
+        guard rise > 0 else { return nil }
+        return Double(truncating: (rise / baselinePriceDecimal * 100) as NSDecimalNumber)
     }
 }
 

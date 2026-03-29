@@ -14,6 +14,11 @@ struct Sale_Alert_BuddyApp: App {
 
     @Environment(\.scenePhase) private var scenePhase
 
+    init() {
+        // Background task handlers must be registered before the app finishes launching.
+        BackgroundTaskService.registerHandlers()
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {
@@ -34,11 +39,19 @@ struct Sale_Alert_BuddyApp: App {
             if newPhase == .active && hasSelectedLanguage {
                 // PriceCheckService is @MainActor; calling checkAll from the main-actor-bound
                 // onChange handler with viewContext is correct and thread-safe.
+                //
+                // Delay by 1.5 s so SwiftUI can complete its first render pass before
+                // heavy network + CoreData work begins on the main actor. Without this
+                // delay, concurrent CoreData writes from checkAll can cause visible UI
+                // stutter immediately after the app opens.
                 Task {
+                    try? await Task.sleep(for: .seconds(1.5))
                     await PriceCheckService.shared.checkAll(
                         context: persistenceController.container.viewContext
                     )
                 }
+                // Keep background tasks scheduled; iOS deduplicates submissions.
+                BackgroundTaskService.scheduleAll()
             }
         }
     }

@@ -11,6 +11,7 @@ struct PriceExtractionPipeline: Sendable {
             SchemaOrgExtractor(),
             MetaTagExtractor(),
             DataAttributeExtractor(),
+            EmbeddedJSONExtractor(),
             HTMLPatternExtractor()
         ]
     }

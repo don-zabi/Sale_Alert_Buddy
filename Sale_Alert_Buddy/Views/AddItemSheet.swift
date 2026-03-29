@@ -4,6 +4,14 @@ import CoreData
 /// Sheet for registering a new product URL to track.
 struct AddItemSheet: View {
 
+    private enum Field: Hashable {
+        case url
+        case title
+        case category
+        case memo
+        case notificationValue
+    }
+
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -14,49 +22,378 @@ struct AddItemSheet: View {
 
     @State private var viewModel = AddItemViewModel()
     @State private var clipboardHasURL: Bool = false
+    @State private var webViewLoading: Bool = false
+    @FocusState private var focusedField: Field?
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                form
-                if viewModel.isRegistering {
-                    loadingOverlay
+        // ZStack lets the custom review card overlay the NavigationStack cleanly.
+        ZStack(alignment: .bottom) {
+            NavigationStack {
+                presentedContent(baseContent)
+            }
+
+            // Dimmer + review card — animated as a unit
+            if viewModel.reviewDialog != nil {
+                Color.black.opacity(0.35)
+                    .ignoresSafeArea()
+                    .onTapGesture { viewModel.reviewDialog = nil }
+                    .transition(.opacity)
+                    .zIndex(10)
+            }
+
+            if let dialog = viewModel.reviewDialog {
+                reviewCard(dialog)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(11)
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: viewModel.reviewDialog != nil)
+    }
+
+    // MARK: - Base Content
+
+    private var baseContent: some View {
+        ZStack(alignment: .bottom) {
+            form
+                .padding(.bottom, bottomFloatingInset)
+
+            if showFloatingRegisterButton {
+                if viewModel.priceConfirmed {
+                    confirmRegistrationButton
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else {
+                    registerButtonOverlay
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .navigationTitle(String(localized: "addItem.title", defaultValue: "Add Item"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(String(localized: "action.cancel", defaultValue: "Cancel")) {
-                        dismiss()
-                    }
+
+            if viewModel.isRegistering {
+                loadingOverlay
+            }
+        }
+        .navigationTitle("addItem.title")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("action.cancel") {
+                    dismiss()
                 }
             }
+        }
+    }
+
+    private func presentedContent<Content: View>(_ content: Content) -> some View {
+        content
             .alert(
-                String(localized: "addItem.error.title", defaultValue: "Registration Failed"),
+                "addItem.error.title",
                 isPresented: Binding(
                     get: { viewModel.errorMessage != nil },
                     set: { if !$0 { viewModel.clearError() } }
                 )
             ) {
-                Button(String(localized: "action.ok", defaultValue: "OK")) {
-                    viewModel.clearError()
-                }
+                Button("action.ok") { viewModel.clearError() }
             } message: {
                 Text(viewModel.errorMessage ?? "")
             }
-            .onChange(of: viewModel.registeredItem) { _, newItem in
-                if newItem != nil {
+            .alert(
+                "addItem.error.title",
+                isPresented: Binding(
+                    get: { viewModel.securityBlockMessage != nil },
+                    set: { if !$0 { viewModel.securityBlockMessage = nil } }
+                )
+            ) {
+                Button("action.ok") {
+                    viewModel.securityBlockMessage = nil
                     dismiss()
                 }
+            } message: {
+                Text(viewModel.securityBlockMessage ?? "")
             }
-            .onAppear {
-                refreshClipboardAvailability()
+            .onChange(of: viewModel.registeredItem) { _, newItem in
+                if newItem != nil { dismiss() }
             }
-            .onChange(of: scenePhase) { _, newPhase in
-                if newPhase == .active {
-                    refreshClipboardAvailability()
+            .onChange(of: viewModel.reviewDialog) { _, newDialog in
+                if newDialog == nil {
+                    webViewLoading = false
+                    // Screenshot is only needed while the review card is visible
+                    viewModel.previewScreenshot = nil
                 }
+            }
+            .onAppear { refreshClipboardAvailability() }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active { refreshClipboardAvailability() }
+            }
+            .animation(.easeInOut(duration: 0.2), value: showFloatingRegisterButton)
+    }
+
+    // MARK: - Review Card (replaces confirmationDialog)
+
+    /// Custom bottom card that shows a rich product preview alongside action buttons.
+    /// Takes up ~82% of screen height so the inline web preview is easy to read.
+    @ViewBuilder
+    private func reviewCard(_ dialog: AddItemViewModel.RegistrationReviewDialog) -> some View {
+        VStack(spacing: 0) {
+            // Drag handle
+            Capsule()
+                .fill(Color(.systemGray4))
+                .frame(width: 36, height: 4)
+                .padding(.top, 12)
+                .padding(.bottom, 10)
+
+            // Title
+            Text(verbatim: dialog.title)
+                .font(.headline)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            // Product preview card (detected dialogs only)
+            if dialog.kind == .detected {
+                productPreview(dialog)
+                    .padding(.top, 10)
+                    .padding(.horizontal)
+
+                // Price area preview — fills remaining card space.
+                // 1st attempt: screenshot of the price element (captured off-screen)
+                // 2nd attempt: live WKWebView with navigation blocked
+                Group {
+                    if let previewURL = dialog.previewURL {
+                        webPreview(url: previewURL, priceDecimal: dialog.previewPriceDecimal)
+                    } else if let screenshot = viewModel.previewScreenshot {
+                        screenshotPreview(screenshot)
+                    } else {
+                        screenshotLoadingPlaceholder
+                    }
+                }
+                .padding(.top, 8)
+                .padding(.horizontal)
+                .frame(maxHeight: .infinity)
+                .layoutPriority(1)
+            } else {
+                // Failure message
+                Text(verbatim: dialog.message)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+            }
+
+            // Action buttons
+            reviewButtons(dialog)
+                .padding(.horizontal)
+                .padding(.top, 12)
+                .padding(.bottom, 20)
+        }
+        .frame(maxHeight: UIScreen.main.bounds.height * 0.82)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    /// Compact thumbnail + title + detected price row.
+    @ViewBuilder
+    private func productPreview(_ dialog: AddItemViewModel.RegistrationReviewDialog) -> some View {
+        HStack(spacing: 10) {
+            // Thumbnail
+            Group {
+                if let urlString = dialog.previewImageURL,
+                   let url = URL(string: urlString) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        default:
+                            placeholderThumbnail
+                        }
+                    }
+                } else {
+                    placeholderThumbnail
+                }
+            }
+            .frame(width: 48, height: 48)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 2) {
+                if let title = dialog.previewTitle, !title.isEmpty {
+                    Text(verbatim: title)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let price = dialog.previewPrice {
+                    Text(verbatim: price)
+                        .font(.title3.bold())
+                        .foregroundStyle(.primary)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            // "Detected" badge
+            Text(String(localized: "addItem.review.detected.badge", defaultValue: "検出"))
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Color.accentColor, in: Capsule())
+        }
+        .padding(10)
+        .background(Color(.secondarySystemGroupedBackground),
+                    in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    /// Inline WKWebView showing the actual product page with the price element highlighted.
+    /// Navigation and form interaction are blocked — the view is read-only.
+    @ViewBuilder
+    private func webPreview(url: URL, priceDecimal: Decimal?) -> some View {
+        ZStack(alignment: .topTrailing) {
+            PricePreviewWebView(url: url, priceDecimal: priceDecimal, isLoading: $webViewLoading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            // Read-only badge — reassures the user that tapping site buttons does nothing
+            Text(String(localized: "addItem.review.webPreview.readOnly",
+                        defaultValue: "プレビューのみ"))
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 4)
+                .background(Color.black.opacity(0.55), in: Capsule())
+                .padding(8)
+
+            if webViewLoading {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .overlay(
+                        VStack(spacing: 8) {
+                            ProgressView()
+                            Text(String(localized: "addItem.review.webPreview.loading",
+                                        defaultValue: "サイトを読み込み中…"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    )
+            }
+        }
+    }
+
+    /// Shows a captured screenshot with a subtle "プレビュー" badge.
+    @ViewBuilder
+    private func screenshotPreview(_ image: UIImage) -> some View {
+        Image(uiImage: image)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(alignment: .topTrailing) {
+                Text(String(localized: "addItem.review.webPreview.readOnly",
+                            defaultValue: "プレビューのみ"))
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(Color.black.opacity(0.55), in: Capsule())
+                    .padding(8)
+            }
+    }
+
+    /// Placeholder shown while the off-screen screenshot is being captured.
+    private var screenshotLoadingPlaceholder: some View {
+        RoundedRectangle(cornerRadius: 10)
+            .fill(Color(.secondarySystemGroupedBackground))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(
+                VStack(spacing: 8) {
+                    ProgressView()
+                    Text(String(localized: "addItem.review.webPreview.loading",
+                                defaultValue: "サイトを読み込み中…"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            )
+    }
+
+    private var placeholderThumbnail: some View {
+        RoundedRectangle(cornerRadius: 10)
+            .fill(Color(.systemGray5))
+            .overlay(
+                Image(systemName: "cart")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            )
+    }
+
+    /// Full-width buttons stacked vertically in the review card.
+    @ViewBuilder
+    private func reviewButtons(_ dialog: AddItemViewModel.RegistrationReviewDialog) -> some View {
+        VStack(spacing: 8) {
+            switch dialog.kind {
+            case .detected:
+                // Primary: confirm price and return to form to set memo/conditions
+                Button {
+                    viewModel.confirmPrice()
+                } label: {
+                    Text(String(localized: "addItem.review.detected.confirm",
+                                defaultValue: "この価格で登録"))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                // Secondary: retry (1st attempt) or give-up (2nd attempt)
+                if dialog.isLastAttempt {
+                    Button {
+                        viewModel.reviewDialog = nil
+                        dismiss()
+                    } label: {
+                        Text(String(localized: "addItem.review.giveUp",
+                                    defaultValue: "検出不可なため閉じる"))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.secondary)
+                } else {
+                    Button {
+                        Task { await viewModel.retryInBackground(context: viewContext) }
+                    } label: {
+                        Text(String(localized: "addItem.review.detected.retry",
+                                    defaultValue: "別の方法で確認"))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                // Cancel (stays on sheet)
+                Button {
+                    viewModel.reviewDialog = nil
+                } label: {
+                    Text(String(localized: "action.cancel", defaultValue: "キャンセル"))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .padding(.top, 2)
+
+            case .failed:
+                Button {
+                    viewModel.reviewDialog = nil
+                    dismiss()
+                } label: {
+                    Text(String(localized: "addItem.review.giveUp",
+                                defaultValue: "検出不可なため閉じる"))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    viewModel.reviewDialog = nil
+                } label: {
+                    Text(String(localized: "action.cancel", defaultValue: "キャンセル"))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .padding(.top, 2)
             }
         }
     }
@@ -67,47 +404,50 @@ struct AddItemSheet: View {
         Form {
             Section {
                 TextField(
-                    String(localized: "addItem.url.placeholder", defaultValue: "https://"),
+                    "addItem.url.placeholder",
                     text: $viewModel.urlText
                 )
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .submitLabel(.next)
+                .focused($focusedField, equals: .url)
+                .onSubmit { focusedField = .title }
 
                 if clipboardHasURL {
                     Button {
                         viewModel.pasteFromClipboard()
                     } label: {
-                        Label(
-                            String(localized: "addItem.pasteURL", defaultValue: "Paste from Clipboard"),
-                            systemImage: "doc.on.clipboard"
-                        )
-                        .font(.subheadline)
+                        Label("addItem.pasteURL", systemImage: "doc.on.clipboard")
+                            .font(.subheadline)
                     }
                 }
             } header: {
-                Text(String(localized: "addItem.section.url", defaultValue: "Product URL"))
+                Text("addItem.section.url")
             }
 
             Section {
                 TextField(
-                    String(localized: "addItem.title.placeholder", defaultValue: "Optional custom title"),
+                    "addItem.title.placeholder",
                     text: $viewModel.titleText
                 )
+                .submitLabel(.next)
+                .focused($focusedField, equals: .title)
+                .onSubmit { focusedField = .category }
             } header: {
-                Text(String(localized: "addItem.section.title", defaultValue: "Title (optional)"))
+                Text("addItem.section.title")
             } footer: {
-                Text(String(
-                    localized: "addItem.title.hint",
-                    defaultValue: "If empty, the title is taken from the product page."
-                ))
+                Text("addItem.title.hint")
             }
 
             Section {
                 TextField(
-                    String(localized: "addItem.category.placeholder", defaultValue: "Optional category"),
+                    "addItem.category.placeholder",
                     text: $viewModel.categoryText
                 )
+                .submitLabel(.next)
+                .focused($focusedField, equals: .category)
+                .onSubmit { focusedField = .memo }
 
                 if !existingCategories.isEmpty {
                     Menu {
@@ -119,29 +459,29 @@ struct AddItemSheet: View {
                             }
                         }
                     } label: {
-                        Label(
-                            String(localized: "addItem.category.pickExisting", defaultValue: "Choose Existing Category"),
-                            systemImage: "folder"
-                        )
-                        .font(.subheadline)
+                        Label("addItem.category.pickExisting", systemImage: "folder")
+                            .font(.subheadline)
                     }
                 }
             } header: {
-                Text(String(localized: "addItem.section.category", defaultValue: "Category (optional)"))
+                Text("addItem.section.category")
             }
 
             Section {
                 TextField(
-                    String(localized: "addItem.memo.placeholder", defaultValue: "Optional note…"),
+                    "addItem.memo.placeholder",
                     text: $viewModel.memo
                 )
+                .submitLabel(.done)
+                .focused($focusedField, equals: .memo)
+                .onSubmit { focusedField = nil }
             } header: {
-                Text(String(localized: "addItem.section.notes", defaultValue: "Notes (optional)"))
+                Text("addItem.section.notes")
             }
 
             Section {
                 Picker(
-                    String(localized: "addItem.notification.type", defaultValue: "Notify condition"),
+                    "addItem.notification.type",
                     selection: $viewModel.notificationConditionType
                 ) {
                     ForEach(NotificationConditionType.allCases) { condition in
@@ -155,56 +495,89 @@ struct AddItemSheet: View {
 
                 HStack {
                     TextField(
-                        String(localized: "addItem.notification.value.placeholder", defaultValue: "Value"),
+                        "addItem.notification.value.placeholder",
                         text: $viewModel.notificationConditionValueText
                     )
                     .keyboardType(.decimalPad)
+                    .focused($focusedField, equals: .notificationValue)
 
                     Text(notificationUnitLabel(for: viewModel.notificationConditionType))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             } header: {
-                Text(String(localized: "addItem.section.notification", defaultValue: "Notification Timing"))
+                Text("addItem.section.notification")
             } footer: {
-                Text(String(
-                    localized: "addItem.notification.hint",
-                    defaultValue: "Examples: 5 (%), 500 (JPY), or 10000 (notify when at or below)."
-                ))
+                Text("addItem.notification.hint")
             }
-
-            Section {
-                TextField(
-                    String(localized: "addItem.tags.placeholder", defaultValue: "tag1, tag2"),
-                    text: $viewModel.tagsText
-                )
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-            } header: {
-                Text(String(localized: "addItem.section.tags", defaultValue: "Tags (optional)"))
-            } footer: {
-                Text(String(localized: "addItem.tags.hint", defaultValue: "Separate tags with commas."))
-            }
-
-            Section {
-                Button {
-                    Task {
-                        await viewModel.register(context: viewContext)
-                    }
-                } label: {
-                    HStack {
-                        Spacer()
-                        Text(String(localized: "addItem.register", defaultValue: "Register & Check"))
-                            .fontWeight(.semibold)
-                        Spacer()
-                    }
+        }
+        .scrollDismissesKeyboard(.interactively)
+        // Keyboard dismiss button placed directly on the Form so it reliably
+        // appears for all keyboard types (.URL, .decimalPad, .default).
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button(String(localized: "action.keyboardDone", defaultValue: "完了")) {
+                    focusedField = nil
                 }
-                .disabled(!viewModel.canRegister)
             }
         }
     }
 
-    // MARK: - Loading Overlay
+    // MARK: - Overlays
+
+    private var registerButtonOverlay: some View {
+        VStack {
+            Button {
+                focusedField = nil
+                Task { await viewModel.register(context: viewContext) }
+            } label: {
+                Text("addItem.register")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 22)
+                    .frame(height: 46)
+                    .background(
+                        viewModel.canRegister ? Color.accentColor : Color.secondary.opacity(0.45),
+                        in: Capsule()
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(!viewModel.canRegister)
+            .shadow(color: Color.black.opacity(0.18), radius: 12, y: 6)
+        }
+        .padding(.bottom, 12)
+    }
+
+    /// Shown after the user confirms the detected price in the review card.
+    /// Lets them adjust memo/conditions before the final save.
+    private var confirmRegistrationButton: some View {
+        VStack(spacing: 5) {
+            HStack(spacing: 4) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                Text(String(localized: "addItem.review.priceConfirmed",
+                            defaultValue: "価格確認済み"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Button {
+                viewModel.confirmPreparedRegistration(context: viewContext)
+            } label: {
+                Text(String(localized: "addItem.review.finalRegister",
+                            defaultValue: "登録する"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 22)
+                    .frame(height: 46)
+                    .background(Color.accentColor, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .shadow(color: Color.black.opacity(0.18), radius: 12, y: 6)
+        }
+        .padding(.bottom, 12)
+    }
 
     private var loadingOverlay: some View {
         ZStack {
@@ -213,7 +586,7 @@ struct AddItemSheet: View {
             VStack(spacing: 12) {
                 ProgressView()
                     .scaleEffect(1.4)
-                Text(String(localized: "addItem.registering", defaultValue: "Checking price…"))
+                Text("addItem.registering")
                     .foregroundStyle(.white)
                     .font(.subheadline)
             }
@@ -231,12 +604,19 @@ struct AddItemSheet: View {
 
     private func refreshClipboardAvailability() {
         let pasteboard = UIPasteboard.general
-        if pasteboard.url != nil {
+        // Use `hasURLs`/`hasStrings` (fast metadata query) as a gate before reading
+        // actual content. Reading `pasteboard.url` or `pasteboard.string` directly can
+        // trigger iOS's paste-notification banner, which causes a brief UI stutter.
+        if pasteboard.hasURLs {
             clipboardHasURL = true
             return
         }
+        guard pasteboard.hasStrings else {
+            clipboardHasURL = false
+            return
+        }
         if let text = pasteboard.string {
-            clipboardHasURL = text.hasPrefix("http://") || text.hasPrefix("https://")
+            clipboardHasURL = URLNormalizer.normalize(text) != nil
             return
         }
         clipboardHasURL = false
@@ -244,11 +624,17 @@ struct AddItemSheet: View {
 
     private func notificationUnitLabel(for type: NotificationConditionType) -> LocalizedStringKey {
         switch type {
-        case .percentage:
-            return "%"
-        case .amount, .targetPrice:
-            return "currency.jpy.unit"
+        case .percentage: return "%"
+        case .amount, .targetPrice: return "currency.jpy.unit"
         }
+    }
+
+    private var showFloatingRegisterButton: Bool {
+        !viewModel.isRegistering && focusedField == nil && viewModel.reviewDialog == nil
+    }
+
+    private var bottomFloatingInset: CGFloat {
+        showFloatingRegisterButton ? 78 : 0
     }
 }
 

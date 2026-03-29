@@ -5,21 +5,24 @@ import SwiftSoup
 struct DataAttributeExtractor: PriceExtractor {
 
     /// Data attributes to scan, in priority order.
-    private static let priceAttributes = [
-        "data-price",
-        "data-product-price",
-        "data-amount",
-        "data-sale-price"
+    private static let priceAttributes: [(name: String, confidence: Double)] = [
+        ("data-shade-tax-price", 0.82),
+        ("data-taxed-price", 0.82),
+        ("data-tax-price", 0.82),
+        ("data-price", 0.75),
+        ("data-product-price", 0.75),
+        ("data-amount", 0.75),
+        ("data-sale-price", 0.75)
     ]
 
     func extract(from document: Document) -> [PriceResult] {
         var results: [PriceResult] = []
 
         for attribute in Self.priceAttributes {
-            guard let elements = try? document.select("[\(attribute)]") else { continue }
+            guard let elements = try? document.select("[\(attribute.name)]") else { continue }
 
             for element in elements {
-                guard let value = try? element.attr(attribute), !value.isEmpty else { continue }
+                guard let value = try? element.attr(attribute.name), !value.isEmpty else { continue }
 
                 guard let parsed = PriceCurrencyParser.parse(value) else { continue }
 
@@ -27,7 +30,7 @@ struct DataAttributeExtractor: PriceExtractor {
                     price: parsed.price,
                     currency: parsed.currency,
                     extractMethod: .dataAttribute,
-                    confidence: 0.75
+                    confidence: attribute.confidence
                 ))
             }
         }

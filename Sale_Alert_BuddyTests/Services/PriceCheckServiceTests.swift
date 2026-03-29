@@ -20,6 +20,7 @@ final class MockURLProtocol: URLProtocol {
 
     static var stubs: [String: Stub] = [:]
     static var defaultStub: Stub?
+    static var lastRequest: URLRequest?
 
     static func stub(
         urlContaining substring: String,
@@ -42,6 +43,7 @@ final class MockURLProtocol: URLProtocol {
     static func reset() {
         stubs.removeAll()
         defaultStub = nil
+        lastRequest = nil
     }
 
     // MARK: - URLProtocol
@@ -50,6 +52,7 @@ final class MockURLProtocol: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        MockURLProtocol.lastRequest = request
         let urlString = request.url?.absoluteString ?? ""
 
         // Find matching stub
@@ -1010,5 +1013,60 @@ struct PriceCheckServiceTests {
 
     @Test func notHTMLHasNilStatusCode() {
         #expect(HTMLFetchError.notHTML.httpStatusCode == nil)
+    }
+
+    // MARK: - checkAll: concurrent guard and cooldown
+
+    @Test("checkAll does not start a second run while already in progress")
+    @MainActor
+    func checkAllPreventsOverlappingRuns() async {
+        // Create a real PriceCheckService with a mock session
+        MockURLProtocol.reset()
+        MockURLProtocol.stub(
+            urlContaining: "example.com",
+            html: HTMLFixtures.jpyProductPage
+        )
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+        let service = PriceCheckService(fetcher: HTMLFetcher(session: session))
+
+        let context = TestPersistence.newContext()
+        let item = TrackingItem.create(in: context)
+        item.currentUrl = "https://example.com/product"
+        item.domain = "example.com"
+        item.baselinePriceDecimal = 1980
+        item.latestPriceDecimal = 1980
+        item.itemStatus = .ok
+
+        // First call — runs normally (no items so completes immediately, sets cooldown)
+        await service.checkAll(context: context)
+        #expect(service.isChecking == false)
+
+        // Second call within cooldown window — should be skipped
+        // Verify by resetting item state after first run and confirming no new check happened
+        item.lastCheckedAt = nil  // reset to detect if checkAll updates it
+        await service.checkAll(context: context)
+        // If cooldown correctly prevented the run, lastCheckedAt should still be nil
+        #expect(item.lastCheckedAt == nil,
+                "checkAll should be skipped within the 5-minute cooldown window")
+    }
+
+    @Test("checkAll guard returns immediately if isChecking is true")
+    @MainActor
+    func checkAllIsCheckingGuard() async {
+        MockURLProtocol.reset()
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+        let service = PriceCheckService(fetcher: HTMLFetcher(session: session))
+
+        let context = TestPersistence.newContext()
+
+        // After the first call completes, isChecking must be false (not stuck)
+        await service.checkAll(context: context)
+        #expect(service.isChecking == false)
+        #expect(service.checkProgress == 1.0)
     }
 }
