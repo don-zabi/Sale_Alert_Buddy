@@ -266,14 +266,15 @@ struct AddItemViewModelTests {
 
         #expect(vm.reviewDialog?.kind == .detected)
         #expect(vm.reviewDialog?.isLastAttempt == false)
-        // 1st attempt must NOT include the live URL (screenshot-only mode)
-        #expect(vm.reviewDialog?.previewURL == nil,
-                "1st attempt should use screenshot preview, not live WebView")
+        #expect(vm.reviewDialog?.previewURL != nil,
+                "Detected dialogs should always carry the source URL for live fallback")
+        #expect(vm.reviewDialog?.prefersScreenshot == true,
+                "1st attempt should prefer the sanitized screenshot")
     }
 
-    @Test("retryInBackground sets isLastAttempt=true on success")
+    @Test("alternative verification reuses the loaded page and returns a last-attempt dialog")
     @MainActor
-    func retryInBackgroundSetsLastAttemptOnSuccess() async throws {
+    func alternativeVerificationReturnsLastAttemptDialog() async throws {
         defer { MockURLProtocol.reset() }
 
         let html = """
@@ -290,17 +291,40 @@ struct AddItemViewModelTests {
         // First attempt
         await vm.register(context: ctx)
         #expect(vm.reviewDialog?.isLastAttempt == false)
-        #expect(vm.reviewDialog?.previewURL == nil, "1st attempt: screenshot mode, no live URL")
+        #expect(vm.reviewDialog?.previewURL != nil, "1st attempt keeps a live fallback URL ready")
+        #expect(vm.reviewDialog?.prefersScreenshot == true, "1st attempt should still prefer screenshot mode")
 
-        // Background retry
-        await vm.retryInBackground(context: ctx)
+        let alternativeURL = vm.beginAlternativeVerification()
+        #expect(alternativeURL?.absoluteString == "https://example.com/item")
+        #expect(vm.reviewDialog == nil)
 
+        let response = await vm.handleManualCapture(
+            capturedPage: InAppCapturedPage(
+                html: html,
+                url: URL(string: "https://example.com/item")!,
+                visiblePriceResult: PriceResult(
+                    price: Decimal(5000),
+                    currency: "JPY",
+                    extractMethod: .renderedVisible,
+                    confidence: 0.86
+                ),
+                previewImage: UIImage()
+            ),
+            context: ctx
+        )
+
+        #expect(response.shouldDismiss == true)
         #expect(vm.reviewDialog?.kind == .detected)
         #expect(vm.reviewDialog?.isLastAttempt == true,
                 "Second attempt should mark dialog as last attempt")
-        // 2nd attempt MUST supply the live URL for the WebView preview
         #expect(vm.reviewDialog?.previewURL != nil,
-                "2nd attempt should use live WebView preview")
+                "2nd attempt should keep the captured source URL")
+        #expect(vm.reviewDialog?.prefersScreenshot == true,
+                "2nd attempt should prefer the exact screenshot captured from the loaded page")
+        #expect(vm.previewScreenshot != nil,
+                "2nd attempt should keep the captured screenshot for the review card")
+        #expect(vm.previewPresentationMode == .screenshot,
+                "2nd attempt should show the captured screenshot instead of reloading a new preview")
     }
 
     @Test("register() resets previewScreenshot for a fresh attempt")
@@ -376,8 +400,12 @@ struct AddItemViewModelTests {
         let ctx = store.container.viewContext
 
         let response = await vm.handleManualCapture(
-            html: blockedHTML,
-            pageURL: URL(string: "https://example.com/product")!,
+            capturedPage: InAppCapturedPage(
+                html: blockedHTML,
+                url: URL(string: "https://example.com/product")!,
+                visiblePriceResult: nil,
+                previewImage: nil
+            ),
             context: ctx
         )
 
@@ -405,8 +433,12 @@ struct AddItemViewModelTests {
         let ctx = store.container.viewContext
 
         let response = await vm.handleManualCapture(
-            html: noPriceHTML,
-            pageURL: URL(string: "https://example.com/product")!,
+            capturedPage: InAppCapturedPage(
+                html: noPriceHTML,
+                url: URL(string: "https://example.com/product")!,
+                visiblePriceResult: nil,
+                previewImage: nil
+            ),
             context: ctx
         )
 

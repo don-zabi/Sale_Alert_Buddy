@@ -2,5 +2,5 @@
 import SwiftSoup
 
 protocol PriceExtractor: Sendable {
-    func extract(from document: Document) -> [PriceResult]
+    nonisolated func extract(from document: Document) -> [PriceResult]
 }

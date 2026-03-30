@@ -19,14 +19,12 @@ final class PageSnapshotService: NSObject {
     /// Viewport that matches a typical iPhone Pro screen.
     private static let viewportSize = CGSize(width: 390, height: 844)
 
-    /// Looks like Mobile Safari to avoid bot-detection that blank-pages automated agents.
-    private static let userAgent =
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) " +
-        "AppleWebKit/605.1.15 (KHTML, like Gecko) " +
-        "Version/17.0 Mobile/15E148 Safari/604.1"
-
     /// Total time budget from load-start to snapshot-taken.
-    private static let timeoutSeconds: TimeInterval = 15
+    private static let timeoutSeconds: TimeInterval = 8
+    /// Retry highlight injection because SPAs often render the price block late.
+    private static let highlightRetryDelays: [TimeInterval] = [0.0, 0.28, 0.62, 1.05]
+    /// Retry once or twice when WebKit gives us a compositor placeholder frame.
+    private static let snapshotRetryDelays: [TimeInterval] = [0.25, 0.45]
 
     private var webView: WKWebView?
     private var completion: ((UIImage?) -> Void)?
@@ -42,6 +40,11 @@ final class PageSnapshotService: NSObject {
         cancelCurrent()
 
         return await withCheckedContinuation { continuation in
+            guard let window = Self.captureWindow else {
+                continuation.resume(returning: nil)
+                return
+            }
+
             priceDigits = (priceDecimal as NSDecimalNumber)
                 .stringValue
                 .filter(\.isNumber)
@@ -49,27 +52,27 @@ final class PageSnapshotService: NSObject {
 
             let config = WKWebViewConfiguration()
             config.mediaTypesRequiringUserActionForPlayback = .all
+            config.websiteDataStore = .nonPersistent()
+            WebPreviewSanitizer.configure(config)
 
             let wv = WKWebView(
                 frame: CGRect(origin: .zero, size: Self.viewportSize),
                 configuration: config
             )
             wv.navigationDelegate = self
-            wv.customUserAgent = Self.userAgent
+            wv.customUserAgent = WebPreviewSanitizer.mobileSafariUserAgent
+            wv.backgroundColor = .systemBackground
+            wv.isOpaque = true
+            wv.scrollView.contentInsetAdjustmentBehavior = .never
             // alpha = 0.001 keeps the view "on-screen" in Core Animation's eyes
             // so the GPU actually rasterises it — 0.0 or isHidden produce blank snapshots.
             wv.alpha = 0.001
 
-            if let window = UIApplication.shared.connectedScenes
-                .compactMap({ $0 as? UIWindowScene })
-                .first?.windows.first {
-                window.addSubview(wv)
-            }
-
+            window.addSubview(wv)
             webView = wv
             wv.load(URLRequest(url: url,
                                cachePolicy: .returnCacheDataElseLoad,
-                               timeoutInterval: 15))
+                               timeoutInterval: 10))
 
             timeoutTask = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(Self.timeoutSeconds))
@@ -78,11 +81,16 @@ final class PageSnapshotService: NSObject {
         }
     }
 
+    func cancelCapture() {
+        cancelCurrent()
+    }
+
     // MARK: - Private helpers
 
     private func cancelCurrent() {
         timeoutTask?.cancel()
         timeoutTask = nil
+        webView?.stopLoading()
         webView?.removeFromSuperview()
         webView = nil
         let c = completion
@@ -94,82 +102,92 @@ final class PageSnapshotService: NSObject {
         guard completion != nil else { return }
         timeoutTask?.cancel()
         timeoutTask = nil
+        webView?.stopLoading()
         webView?.removeFromSuperview()
         webView = nil
         let c = completion
         completion = nil
-        c?(image)
+        let validatedImage = image.flatMap { PreviewImageValidator.isLikelyBlank($0) ? nil : $0 }
+        c?(validatedImage)
     }
 
     /// Polls until the page body has meaningful content (JS SPAs need extra time),
     /// then injects the price highlight and captures the snapshot.
     private func waitForContentThenCapture(_ webView: WKWebView, attempt: Int = 0) {
-        // Delay grows on each retry: 0.5 s, 0.8 s, 1.1 s, 1.4 s
-        let delay = 0.5 + Double(attempt) * 0.3
+        let delay = 0.15 + Double(attempt) * 0.18
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self, let wv = self.webView else { return }
 
             wv.evaluateJavaScript(
-                "document.body ? document.body.innerHTML.length : 0"
+                WebPreviewSanitizer.readinessScript(priceDigits: self.priceDigits)
             ) { [weak self] result, _ in
                 guard let self else { return }
-                let length = (result as? Int) ?? 0
-                // Retry up to 4 times (≈ 3.8 s total wait) for slow JS frameworks
-                if length < 500 && attempt < 4 {
+                let isReady = (result as? Bool) ?? false
+                if isReady {
+                    self.injectAndCapture(wv)
+                } else if attempt < 5 {
                     self.waitForContentThenCapture(wv, attempt: attempt + 1)
                 } else {
-                    self.injectAndCapture(wv)
+                    self.finish(with: nil)
                 }
             }
         }
     }
 
     private func injectAndCapture(_ webView: WKWebView) {
-        let digits = priceDigits
-        let js = """
-        (function() {
-            // Make all interactive elements inert so the screenshot looks read-only
-            var s = document.createElement('style');
-            s.textContent = 'a,button,input,select,textarea,[role="button"]{pointer-events:none!important}';
-            document.head.appendChild(s);
+        attemptHighlightAndCapture(webView, attempt: 0)
+    }
 
-            // Find the best-matching price element
-            var digits = "\(digits)";
-            var nodes = document.querySelectorAll(
-                'span,div,p,strong,b,em,label,td,li,[class*="price"],[id*="price"],[data-price]'
-            );
-            var best = null, bestScore = -1;
-            for (var i = 0; i < nodes.length; i++) {
-                var el = nodes[i];
-                var cs = window.getComputedStyle(el);
-                if (cs.display === 'none' || cs.visibility === 'hidden') continue;
-                var txt = (el.innerText || el.textContent || '').trim();
-                var nd = txt.replace(/\\D/g, '');
-                if (nd.includes(digits) && txt.length < 60) {
-                    var score = 1000 - txt.length;
-                    if (score > bestScore) { bestScore = score; best = el; }
-                }
-            }
-            if (best) {
-                best.style.backgroundColor = '#FFF176';
-                best.style.outline = '2px solid #FF9800';
-                best.style.borderRadius = '3px';
-                // 'instant' so position is applied synchronously before the snapshot
-                best.scrollIntoView({ behavior: 'instant', block: 'center' });
-            }
-        })();
-        """
+    private func attemptHighlightAndCapture(_ webView: WKWebView, attempt: Int) {
+        webView.evaluateJavaScript(
+            WebPreviewSanitizer.postLoadScript(priceDigits: priceDigits)
+        ) { [weak self] result, _ in
+            guard let self, self.webView != nil else { return }
 
-        webView.evaluateJavaScript(js) { [weak self] _, _ in
-            guard let self, let wv = self.webView else { return }
-            // One run-loop tick for Core Animation to present the updated frame
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-                guard let self, let wv = self.webView else { return }
-                let cfg = WKSnapshotConfiguration()
-                cfg.afterScreenUpdates = true
-                wv.takeSnapshot(with: cfg) { [weak self] image, _ in
-                    self?.finish(with: image)
+            if (result as? Bool) == true {
+                // One run-loop tick for Core Animation to present the updated frame
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                    guard let self, let wv = self.webView else { return }
+                    self.captureSnapshot(from: wv)
                 }
+                return
+            }
+
+            guard attempt < Self.highlightRetryDelays.count - 1 else {
+                self.finish(with: nil)
+                return
+            }
+
+            let retryDelay = Self.highlightRetryDelays[attempt + 1]
+            DispatchQueue.main.asyncAfter(deadline: .now() + retryDelay) { [weak self] in
+                guard let self, let currentWebView = self.webView, currentWebView === webView else { return }
+                self.attemptHighlightAndCapture(webView, attempt: attempt + 1)
+            }
+        }
+    }
+
+    private func captureSnapshot(from webView: WKWebView, attempt: Int = 0) {
+        let cfg = WKSnapshotConfiguration()
+        cfg.afterScreenUpdates = true
+
+        webView.takeSnapshot(with: cfg) { [weak self] image, _ in
+            guard let self else { return }
+            guard let currentWebView = self.webView, currentWebView === webView else { return }
+
+            if let image, !PreviewImageValidator.isLikelyBlank(image) {
+                self.finish(with: image)
+                return
+            }
+
+            guard attempt < Self.snapshotRetryDelays.count else {
+                self.finish(with: nil)
+                return
+            }
+
+            let retryDelay = Self.snapshotRetryDelays[attempt]
+            DispatchQueue.main.asyncAfter(deadline: .now() + retryDelay) { [weak self] in
+                guard let self, let currentWebView = self.webView, currentWebView === webView else { return }
+                self.captureSnapshot(from: webView, attempt: attempt + 1)
             }
         }
     }
@@ -186,12 +204,27 @@ extension PageSnapshotService: WKNavigationDelegate {
     func webView(_ webView: WKWebView,
                  didFail navigation: WKNavigation!,
                  withError error: Error) {
+        guard (error as NSError).code != NSURLErrorCancelled else { return }
         finish(with: nil)
     }
 
     func webView(_ webView: WKWebView,
                  didFailProvisionalNavigation navigation: WKNavigation!,
                  withError error: Error) {
+        guard (error as NSError).code != NSURLErrorCancelled else { return }
         finish(with: nil)
+    }
+}
+
+private extension PageSnapshotService {
+    static var captureWindow: UIWindow? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)
+            ?? UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap(\.windows)
+                .first
     }
 }

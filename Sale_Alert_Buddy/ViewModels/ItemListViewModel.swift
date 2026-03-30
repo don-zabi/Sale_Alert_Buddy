@@ -81,16 +81,16 @@ final class ItemListViewModel {
 
     func handleManualCapture(
         for item: TrackingItem,
-        html: String,
-        pageURL: URL,
+        capturedPage: InAppCapturedPage,
         context: NSManagedObjectContext
     ) async -> InAppPriceCaptureResponse {
         do {
             let result = try await checkService.checkItemUsingLoadedPage(
                 item,
-                pageHTML: html,
-                pageURL: pageURL,
-                context: context
+                pageHTML: capturedPage.html,
+                pageURL: capturedPage.url,
+                context: context,
+                visiblePriceResult: capturedPage.visiblePriceResult
             )
             let priceText = NotificationService.formatPrice(
                 result.priceResult.price,

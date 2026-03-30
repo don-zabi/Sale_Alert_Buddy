@@ -96,6 +96,7 @@ final class PriceCheckService {
     private let metadataExtractor: MetadataExtractor
     private let throttler: DomainThrottler
     private let notificationService: NotificationService
+    private let renderedPageLoader: any RenderedPageLoading
 
     // MARK: - Init
 
@@ -107,7 +108,8 @@ final class PriceCheckService {
         sitePriceResolver: (any SiteSpecificPriceResolving)? = nil,
         metadataExtractor: MetadataExtractor = MetadataExtractor(),
         throttler: DomainThrottler = DomainThrottler.shared,
-        notificationService: NotificationService? = nil
+        notificationService: NotificationService? = nil,
+        renderedPageLoader: (any RenderedPageLoading)? = nil
     ) {
         let sharedSession = HTMLFetcher.makeDefaultSession()
 
@@ -117,6 +119,7 @@ final class PriceCheckService {
         self.metadataExtractor = metadataExtractor
         self.throttler = throttler
         self.notificationService = notificationService ?? NotificationService.shared
+        self.renderedPageLoader = renderedPageLoader ?? WebKitRenderedPageLoader.shared
     }
 
     // MARK: - Registration Draft
@@ -133,17 +136,37 @@ final class PriceCheckService {
         do {
             fetchResult = try await fetcher.fetch(url: preparedURL.url)
         } catch {
+            if let renderedPage = await renderedPageLoader.load(url: preparedURL.url) {
+                let resolvedPage = try await makeResolvedPage(
+                    from: renderedPage.html,
+                    requestURL: renderedPage.finalURL,
+                    httpStatus: 200,
+                    durationMs: 0,
+                    allowURLFallback: true,
+                    renderedSnapshot: renderedPage,
+                    preferRenderedVisiblePrice: true
+                )
+                return makeDraft(
+                    originalUrlString: urlString,
+                    normalizedUrl: preparedURL.normalizedUrl,
+                    resolvedPage: resolvedPage
+                )
+            }
             throw PriceCheckError.fetchFailed(underlying: error)
         }
 
-        return try await makeDraft(
-            originalUrlString: urlString,
-            normalizedUrl: preparedURL.normalizedUrl,
-            html: fetchResult.html,
-            finalURL: fetchResult.finalURL,
+        let resolvedPage = try await makeResolvedPage(
+            from: fetchResult.html,
+            requestURL: fetchResult.finalURL,
             httpStatus: fetchResult.httpStatus,
             durationMs: fetchResult.durationMs,
-            allowURLFallback: true
+            allowURLFallback: true,
+            preferRenderedVisiblePrice: true
+        )
+        return makeDraft(
+            originalUrlString: urlString,
+            normalizedUrl: preparedURL.normalizedUrl,
+            resolvedPage: resolvedPage
         )
     }
 
@@ -151,7 +174,8 @@ final class PriceCheckService {
         originalUrlString: String,
         pageHTML: String,
         pageURL: URL,
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        visiblePriceResult: PriceResult? = nil
     ) async throws -> PreparedTrackingItemDraft {
         let preparedURL = try prepareNormalizedURL(
             from: URLNormalizer.normalize(originalUrlString) ?? pageURL.absoluteString
@@ -159,7 +183,12 @@ final class PriceCheckService {
         try throwIfDuplicate(url: preparedURL.normalizedUrl, context: context)
 
         do {
-            let resolvedPage = try await resolveLoadedPage(pageHTML: pageHTML, pageURL: pageURL)
+            let resolvedPage = try await resolveLoadedPage(
+                pageHTML: pageHTML,
+                pageURL: pageURL,
+                preferRenderedVisiblePrice: true,
+                visiblePriceResult: visiblePriceResult
+            )
             return makeDraft(
                 originalUrlString: originalUrlString,
                 normalizedUrl: preparedURL.normalizedUrl,
@@ -214,9 +243,14 @@ final class PriceCheckService {
         _ item: TrackingItem,
         pageHTML: String,
         pageURL: URL,
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        visiblePriceResult: PriceResult? = nil
     ) async throws -> ForegroundPriceCaptureResult {
-        let resolvedPage = try await resolveLoadedPage(pageHTML: pageHTML, pageURL: pageURL)
+        let resolvedPage = try await resolveLoadedPage(
+            pageHTML: pageHTML,
+            pageURL: pageURL,
+            visiblePriceResult: visiblePriceResult
+        )
         await applyResolvedPrice(
             item: item,
             domain: item.domain,
@@ -303,44 +337,20 @@ final class PriceCheckService {
         // Wait for throttle
         try? await throttler.waitIfNeeded(for: domain)
 
+        var fetchDurationMs: Int32 = 0
+        var fetchHTTPStatus: Int = 0
+
         do {
             // Attempt fetch
             let fetchResult = try await fetcher.fetch(url: url, timeout: timeout)
-
-            let metadata = metadataExtractor.extract(from: fetchResult.html, requestUrl: fetchResult.finalURL)
-
-            // Attempt extraction
-            let resolvedPrice = await resolvePrice(
+            fetchDurationMs = fetchResult.durationMs
+            fetchHTTPStatus = fetchResult.httpStatus
+            let resolvedPage = try await makeResolvedPage(
                 from: fetchResult.html,
                 requestURL: fetchResult.finalURL,
-                allowURLFallback: false
-            )
-            guard let (priceResult, extractMethod) = resolvedPrice else {
-                // Extraction failed — treat as failure
-                let errorType: FetchErrorType =
-                    ProtectionPageDetector.isProtectionPage(fetchResult.html, url: fetchResult.finalURL)
-                    ? .accessBlocked
-                    : .extractionFailed
-                await handleExtractionFailure(
-                    item: item,
-                    domain: domain,
-                    context: context,
-                    durationMs: fetchResult.durationMs,
-                    httpStatus: fetchResult.httpStatus,
-                    errorType: errorType
-                )
-                return
-            }
-
-            let resolvedUrlString = metadata.resolvedUrl ?? fetchResult.finalURL.absoluteString
-            let resolvedPage = ResolvedPagePrice(
-                priceResult: priceResult,
-                extractMethod: extractMethod,
-                finalURL: fetchResult.finalURL,
-                resolvedUrlString: resolvedUrlString,
-                metadata: metadata,
                 httpStatus: fetchResult.httpStatus,
-                durationMs: fetchResult.durationMs
+                durationMs: fetchResult.durationMs,
+                allowURLFallback: false
             )
 
             await applyResolvedPrice(
@@ -350,6 +360,26 @@ final class PriceCheckService {
                 context: context
             )
 
+        } catch let checkError as PriceCheckError {
+            let errorType: FetchErrorType
+            switch checkError {
+            case .accessBlocked:
+                errorType = .accessBlocked
+            case .priceNotFound:
+                errorType = .extractionFailed
+            case .invalidURL, .duplicateURL:
+                errorType = .extractionFailed
+            case .fetchFailed:
+                errorType = .network
+            }
+            await handleExtractionFailure(
+                item: item,
+                domain: domain,
+                context: context,
+                durationMs: fetchDurationMs,
+                httpStatus: fetchHTTPStatus,
+                errorType: errorType
+            )
         } catch let fetchError as HTMLFetchError {
             await handleHTMLFetchError(
                 fetchError,
@@ -587,6 +617,46 @@ final class PriceCheckService {
         throw PriceCheckError.priceNotFound
     }
 
+    private func resolveRenderedSnapshotPrice(
+        _ renderedPage: RenderedPageSnapshot
+    ) async throws -> (result: PriceResult, method: ExtractMethod)? {
+        if let visiblePrice = renderedPage.visiblePriceResult,
+           PriceValidator.validate(visiblePrice) {
+            return (result: visiblePrice, method: visiblePrice.extractMethod)
+        }
+
+        guard !renderedPage.html.isEmpty else {
+            return nil
+        }
+
+        return await resolvePrice(
+            from: renderedPage.html,
+            requestURL: renderedPage.finalURL,
+            allowURLFallback: false
+        )
+    }
+
+    private func shouldUseRenderedVisiblePrice(
+        _ renderedPrice: PriceResult,
+        over resolvedPrice: (result: PriceResult, method: ExtractMethod)
+    ) -> Bool {
+        guard PriceValidator.validate(renderedPrice) else { return false }
+        guard resolvedPrice.method != .siteAPI else { return false }
+        guard renderedPrice.currency.uppercased() == resolvedPrice.result.currency.uppercased() else { return false }
+        guard renderedPrice.price != resolvedPrice.result.price else { return false }
+
+        if renderedPrice.confidence >= 0.82 {
+            return true
+        }
+
+        switch resolvedPrice.method {
+        case .schemaOrg, .metaTag, .dataAttribute, .htmlPattern, .embeddedJSON, .htmlContext:
+            return renderedPrice.confidence >= max(0.78, resolvedPrice.result.confidence - 0.05)
+        case .failed, .siteAPI, .renderedVisible:
+            return false
+        }
+    }
+
     private func prepareNormalizedURL(from urlString: String) throws -> (normalizedUrl: String, url: URL) {
         guard let normalizedUrl = URLNormalizer.normalize(urlString),
               let url = URL(string: normalizedUrl) else {
@@ -658,9 +728,16 @@ final class PriceCheckService {
 
     private func resolveLoadedPage(
         pageHTML: String,
-        pageURL: URL
+        pageURL: URL,
+        preferRenderedVisiblePrice: Bool = false,
+        visiblePriceResult: PriceResult? = nil
     ) async throws -> ResolvedPagePrice {
         let snapshotError: PriceCheckError?
+        let capturedSnapshot = RenderedPageSnapshot(
+            html: pageHTML,
+            finalURL: pageURL,
+            visiblePriceResult: visiblePriceResult
+        )
 
         do {
             return try await makeResolvedPage(
@@ -668,7 +745,9 @@ final class PriceCheckService {
                 requestURL: pageURL,
                 httpStatus: 200,
                 durationMs: 0,
-                allowURLFallback: false
+                allowURLFallback: false,
+                renderedSnapshot: capturedSnapshot,
+                preferRenderedVisiblePrice: preferRenderedVisiblePrice
             )
         } catch let error as PriceCheckError {
             snapshotError = error
@@ -683,7 +762,9 @@ final class PriceCheckService {
                 requestURL: fetchResult.finalURL,
                 httpStatus: fetchResult.httpStatus,
                 durationMs: fetchResult.durationMs,
-                allowURLFallback: false
+                allowURLFallback: false,
+                renderedSnapshot: capturedSnapshot,
+                preferRenderedVisiblePrice: preferRenderedVisiblePrice
             )
         } catch let error as PriceCheckError {
             throw snapshotError ?? error
@@ -700,19 +781,87 @@ final class PriceCheckService {
         requestURL: URL,
         httpStatus: Int,
         durationMs: Int32,
-        allowURLFallback: Bool
+        allowURLFallback: Bool,
+        renderedSnapshot: RenderedPageSnapshot? = nil,
+        preferRenderedVisiblePrice: Bool = false
     ) async throws -> ResolvedPagePrice {
-        let resolvedPrice = try await resolvePriceOrThrow(
-            from: html,
-            requestURL: requestURL,
-            allowURLFallback: allowURLFallback
-        )
-        let metadata = metadataExtractor.extract(from: html, requestUrl: requestURL)
+        let initialResolvedPrice: (result: PriceResult, method: ExtractMethod)?
+        let initialError: PriceCheckError?
+
+        do {
+            initialResolvedPrice = try await resolvePriceOrThrow(
+                from: html,
+                requestURL: requestURL,
+                allowURLFallback: allowURLFallback
+            )
+            initialError = nil
+        } catch let error as PriceCheckError {
+            initialResolvedPrice = nil
+            initialError = error
+        } catch {
+            initialResolvedPrice = nil
+            initialError = nil
+        }
+
+        let requiresRenderedFallback: Bool
+        switch initialError {
+        case .accessBlocked, .priceNotFound:
+            requiresRenderedFallback = true
+        case .invalidURL, .duplicateURL, .fetchFailed, nil:
+            requiresRenderedFallback = false
+        }
+
+        let shouldAttemptRenderedConfirmation =
+            renderedSnapshot != nil ||
+            requiresRenderedFallback ||
+            (preferRenderedVisiblePrice && initialResolvedPrice?.method != .siteAPI)
+
+        let liveSnapshot: RenderedPageSnapshot?
+        if shouldAttemptRenderedConfirmation {
+            if let renderedSnapshot {
+                liveSnapshot = renderedSnapshot
+            } else {
+                liveSnapshot = await renderedPageLoader.load(url: requestURL)
+            }
+        } else {
+            liveSnapshot = nil
+        }
+
+        var resolvedPrice = initialResolvedPrice
+        var metadataHTML = html
+        var finalURL = requestURL
+
+        if let liveSnapshot {
+            if !liveSnapshot.html.isEmpty {
+                metadataHTML = liveSnapshot.html
+                finalURL = liveSnapshot.finalURL
+            }
+
+            if let renderedVisiblePrice = liveSnapshot.visiblePriceResult {
+                if let initialResolvedPrice,
+                   shouldUseRenderedVisiblePrice(renderedVisiblePrice, over: initialResolvedPrice) {
+                    resolvedPrice = (result: renderedVisiblePrice, method: renderedVisiblePrice.extractMethod)
+                } else if resolvedPrice == nil {
+                    resolvedPrice = (result: renderedVisiblePrice, method: renderedVisiblePrice.extractMethod)
+                }
+            }
+
+            if resolvedPrice == nil,
+               let renderedResolvedPrice = try await resolveRenderedSnapshotPrice(liveSnapshot) {
+                resolvedPrice = renderedResolvedPrice
+            }
+        }
+
+        guard let resolvedPrice else {
+            throw initialError ?? PriceCheckError.priceNotFound
+        }
+
+        let metadata = metadataExtractor.extract(from: metadataHTML, requestUrl: finalURL)
         return ResolvedPagePrice(
             priceResult: resolvedPrice.result,
             extractMethod: resolvedPrice.method,
-            finalURL: requestURL,
-            resolvedUrlString: metadata.resolvedUrl ?? requestURL.absoluteString,
+            finalURL: finalURL,
+            resolvedUrlString: metadata.resolvedUrl ?? finalURL.absoluteString,
             metadata: metadata,
             httpStatus: httpStatus,
             durationMs: durationMs

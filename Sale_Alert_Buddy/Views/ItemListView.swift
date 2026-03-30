@@ -45,11 +45,10 @@ struct ItemListView: View {
                                 localized: "manualCapture.list.title",
                                 defaultValue: "手動で価格確認"
                             )
-                        ) { html, pageURL in
+                        ) { capturedPage in
                             let response = await viewModel.handleManualCapture(
                                 for: item,
-                                html: html,
-                                pageURL: pageURL,
+                                capturedPage: capturedPage,
                                 context: viewContext
                             )
                             if response.shouldDismiss {

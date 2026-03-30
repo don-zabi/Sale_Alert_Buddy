@@ -8,6 +8,8 @@ enum ExtractMethod: Int16 {
     case htmlPattern = 4
     case embeddedJSON = 5
     case siteAPI = 6
+    case htmlContext = 7
+    case renderedVisible = 8
 
     var displayName: String {
         switch self {
@@ -18,6 +20,8 @@ enum ExtractMethod: Int16 {
         case .htmlPattern: return "HTML Pattern"
         case .embeddedJSON: return "Embedded JSON"
         case .siteAPI: return "Site API"
+        case .htmlContext: return "HTML Context"
+        case .renderedVisible: return "Rendered Visible"
         }
     }
 }

@@ -4,6 +4,11 @@ import CoreData
 /// Sheet for registering a new product URL to track.
 struct AddItemSheet: View {
 
+    private struct ManualCaptureTarget: Identifiable {
+        let id = UUID()
+        let url: URL
+    }
+
     private enum Field: Hashable {
         case url
         case title
@@ -23,6 +28,7 @@ struct AddItemSheet: View {
     @State private var viewModel = AddItemViewModel()
     @State private var clipboardHasURL: Bool = false
     @State private var webViewLoading: Bool = false
+    @State private var manualCaptureTarget: ManualCaptureTarget?
     @FocusState private var focusedField: Field?
 
     var body: some View {
@@ -117,13 +123,26 @@ struct AddItemSheet: View {
             .onChange(of: viewModel.reviewDialog) { _, newDialog in
                 if newDialog == nil {
                     webViewLoading = false
-                    // Screenshot is only needed while the review card is visible
-                    viewModel.previewScreenshot = nil
+                    viewModel.clearPreviewState()
                 }
             }
             .onAppear { refreshClipboardAvailability() }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active { refreshClipboardAvailability() }
+            }
+            .sheet(item: $manualCaptureTarget) { target in
+                InAppPriceCaptureSheet(
+                    initialURL: target.url,
+                    title: String(
+                        localized: "manualCapture.list.title",
+                        defaultValue: "手動で価格確認"
+                    )
+                ) { capturedPage in
+                    await viewModel.handleManualCapture(
+                        capturedPage: capturedPage,
+                        context: viewContext
+                    )
+                }
             }
             .animation(.easeInOut(duration: 0.2), value: showFloatingRegisterButton)
     }
@@ -155,17 +174,10 @@ struct AddItemSheet: View {
                     .padding(.horizontal)
 
                 // Price area preview — fills remaining card space.
-                // 1st attempt: screenshot of the price element (captured off-screen)
-                // 2nd attempt: live WKWebView with navigation blocked
-                Group {
-                    if let previewURL = dialog.previewURL {
-                        webPreview(url: previewURL, priceDecimal: dialog.previewPriceDecimal)
-                    } else if let screenshot = viewModel.previewScreenshot {
-                        screenshotPreview(screenshot)
-                    } else {
-                        screenshotLoadingPlaceholder
-                    }
-                }
+                // 1st attempt: prefer a sanitized screenshot, but fall back quickly to the
+                // live sanitized preview if capture is slow or blank. Retry/manual flows
+                // show the live sanitized preview immediately.
+                previewSurface(dialog)
                 .padding(.top, 8)
                 .padding(.horizontal)
                 .frame(maxHeight: .infinity)
@@ -244,7 +256,7 @@ struct AddItemSheet: View {
     }
 
     /// Inline WKWebView showing the actual product page with the price element highlighted.
-    /// Navigation and form interaction are blocked — the view is read-only.
+    /// Purchase buttons and sticky CTAs are hidden before render; navigation stays read-only.
     @ViewBuilder
     private func webPreview(url: URL, priceDecimal: Decimal?) -> some View {
         ZStack(alignment: .topTrailing) {
@@ -276,6 +288,38 @@ struct AddItemSheet: View {
                         }
                     )
             }
+        }
+    }
+
+    @ViewBuilder
+    private func previewSurface(_ dialog: AddItemViewModel.RegistrationReviewDialog) -> some View {
+        if dialog.prefersScreenshot {
+            ZStack {
+                if let previewURL = dialog.previewURL {
+                    webPreview(url: previewURL, priceDecimal: dialog.previewPriceDecimal)
+                        .allowsHitTesting(viewModel.previewPresentationMode == .liveWeb)
+                        .accessibilityHidden(viewModel.previewPresentationMode != .liveWeb)
+                }
+
+                switch viewModel.previewPresentationMode {
+                case .screenshot:
+                    if let screenshot = viewModel.previewScreenshot {
+                        screenshotPreview(screenshot)
+                    } else {
+                        screenshotLoadingPlaceholder
+                    }
+                case .idle, .loadingScreenshot:
+                    screenshotLoadingPlaceholder
+                case .liveWeb:
+                    EmptyView()
+                }
+            }
+        } else if let previewURL = dialog.previewURL {
+            webPreview(url: previewURL, priceDecimal: dialog.previewPriceDecimal)
+        } else if let screenshot = viewModel.previewScreenshot {
+            screenshotPreview(screenshot)
+        } else {
+            screenshotLoadingPlaceholder
         }
     }
 
@@ -354,7 +398,9 @@ struct AddItemSheet: View {
                     .tint(.secondary)
                 } else {
                     Button {
-                        Task { await viewModel.retryInBackground(context: viewContext) }
+                        if let url = viewModel.beginAlternativeVerification() {
+                            manualCaptureTarget = ManualCaptureTarget(url: url)
+                        }
                     } label: {
                         Text(String(localized: "addItem.review.detected.retry",
                                     defaultValue: "別の方法で確認"))

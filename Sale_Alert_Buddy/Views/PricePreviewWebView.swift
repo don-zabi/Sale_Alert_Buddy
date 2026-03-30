@@ -20,12 +20,17 @@ struct PricePreviewWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.mediaTypesRequiringUserActionForPlayback = .all
+        config.websiteDataStore = .default()
+        WebPreviewSanitizer.configure(config)
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.scrollView.isScrollEnabled = true
         webView.scrollView.bounces = true
         webView.scrollView.showsVerticalScrollIndicator = false
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.backgroundColor = UIColor.systemBackground
+        webView.isOpaque = true
+        webView.customUserAgent = WebPreviewSanitizer.mobileSafariUserAgent
         let request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 20)
         webView.load(request)
         return webView
@@ -65,10 +70,7 @@ struct PricePreviewWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isLoading = false
-            injectReadOnlyStyles(into: webView)
-            if let price = priceDecimal {
-                injectPriceHighlight(into: webView, price: price)
-            }
+            applyPreviewDecorations(into: webView)
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -83,59 +85,16 @@ struct PricePreviewWebView: UIViewRepresentable {
 
         // MARK: - JS injection
 
-        /// Disables pointer events on all interactive elements so the page looks
-        /// and feels read-only. Buttons, links, and form controls still render
-        /// normally but cannot be tapped.
-        private func injectReadOnlyStyles(into webView: WKWebView) {
-            let js = """
-            (function() {
-                var s = document.createElement('style');
-                s.textContent = [
-                    'a, button, input, select, textarea, [role="button"], [role="link"]',
-                    '{ pointer-events: none !important; cursor: default !important; }'
-                ].join(' ');
-                document.head.appendChild(s);
-            })();
-            """
-            webView.evaluateJavaScript(js, completionHandler: nil)
-        }
-
-        private func injectPriceHighlight(into webView: WKWebView, price: Decimal) {
-            let priceString = (price as NSDecimalNumber).stringValue
-            let digitsOnly = priceString.filter(\.isNumber)
-
-            let js = """
-            (function() {
-                var digits = "\(digitsOnly)";
-                var allNodes = document.querySelectorAll(
-                    'span, div, p, strong, b, em, label, td, li, [class*="price"], [id*="price"], [data-price]'
-                );
-                var best = null;
-                var bestScore = -1;
-                for (var i = 0; i < allNodes.length; i++) {
-                    var el = allNodes[i];
-                    var style = window.getComputedStyle(el);
-                    if (style.display === 'none' || style.visibility === 'hidden') continue;
-                    var text = el.innerText || el.textContent || '';
-                    var nodeDigits = text.replace(/\\D/g, '');
-                    if (nodeDigits.includes(digits) && text.length < 60) {
-                        var score = 1000 - text.trim().length;
-                        if (score > bestScore) {
-                            bestScore = score;
-                            best = el;
-                        }
-                    }
+        private func applyPreviewDecorations(into webView: WKWebView) {
+            let digitsOnly = priceDecimal.map {
+                ($0 as NSDecimalNumber).stringValue.filter(\.isNumber)
+            }
+            let script = WebPreviewSanitizer.postLoadScript(priceDigits: digitsOnly)
+            for delay in [0.0, 0.35, 0.9, 1.6] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak webView] in
+                    webView?.evaluateJavaScript(script, completionHandler: nil)
                 }
-                if (best) {
-                    best.style.backgroundColor = '#FFF176';
-                    best.style.outline = '2px solid #FF9800';
-                    best.style.borderRadius = '3px';
-                    best.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            })();
-            """
-
-            webView.evaluateJavaScript(js, completionHandler: nil)
+            }
         }
     }
 }

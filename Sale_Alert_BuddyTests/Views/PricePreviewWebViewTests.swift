@@ -1,5 +1,6 @@
 import Testing
 import WebKit
+import SwiftUI
 @testable import Sale_Alert_Buddy
 
 // MARK: - PricePreviewWebView.Coordinator Tests

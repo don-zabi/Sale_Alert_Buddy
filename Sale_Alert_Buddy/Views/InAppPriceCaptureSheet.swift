@@ -6,11 +6,18 @@ struct InAppPriceCaptureResponse: Sendable {
     let message: String
 }
 
+struct InAppCapturedPage {
+    let html: String
+    let url: URL
+    let visiblePriceResult: PriceResult?
+    let previewImage: UIImage?
+}
+
 struct InAppPriceCaptureSheet: View {
 
     let initialURL: URL
     let title: String
-    let onCapturedPage: @MainActor (String, URL) async -> InAppPriceCaptureResponse
+    let onCapturedPage: @MainActor (InAppCapturedPage) async -> InAppPriceCaptureResponse
 
     @Environment(\.dismiss) private var dismiss
     @State private var browser: InAppPriceCaptureBrowser
@@ -22,7 +29,7 @@ struct InAppPriceCaptureSheet: View {
     init(
         initialURL: URL,
         title: String,
-        onCapturedPage: @escaping @MainActor (String, URL) async -> InAppPriceCaptureResponse
+        onCapturedPage: @escaping @MainActor (InAppCapturedPage) async -> InAppPriceCaptureResponse
     ) {
         self.initialURL = initialURL
         self.title = title
@@ -140,7 +147,7 @@ struct InAppPriceCaptureSheet: View {
         do {
             try await browser.syncCookiesToSharedStorage()
             let snapshot = try await browser.snapshot()
-            let response = await onCapturedPage(snapshot.html, snapshot.url)
+            let response = await onCapturedPage(snapshot)
             if response.shouldDismiss {
                 dismiss()
             } else {
@@ -164,11 +171,6 @@ struct InAppPriceCaptureSheet: View {
 @Observable
 final class InAppPriceCaptureBrowser {
 
-    struct Snapshot {
-        let html: String
-        let url: URL
-    }
-
     let initialURL: URL
     let webView: WKWebView
     var isLoading: Bool = true
@@ -182,6 +184,7 @@ final class InAppPriceCaptureBrowser {
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.allowsBackForwardNavigationGestures = true
+        webView.customUserAgent = WebPreviewSanitizer.mobileSafariUserAgent
         self.webView = webView
         self.currentURL = initialURL
     }
@@ -199,16 +202,26 @@ final class InAppPriceCaptureBrowser {
         }
     }
 
-    func snapshot() async throws -> Snapshot {
+    func snapshot() async throws -> InAppCapturedPage {
+        let visiblePriceResult = try await probeVisiblePriceResult()
         let htmlValue = try await webView.asyncEvaluateJavaScript("document.documentElement.outerHTML")
         guard let html = htmlValue as? String, !html.isEmpty else {
             throw URLError(.cannotDecodeContentData)
         }
 
-        return Snapshot(
+        return InAppCapturedPage(
             html: html,
-            url: webView.url ?? currentURL ?? initialURL
+            url: webView.url ?? currentURL ?? initialURL,
+            visiblePriceResult: visiblePriceResult,
+            previewImage: await webView.snapshotImage()
         )
+    }
+
+    private func probeVisiblePriceResult() async throws -> PriceResult? {
+        let payload = try await webView.asyncEvaluateJavaScript(
+            WebPreviewSanitizer.standaloneVisiblePriceProbeScript(priceDigits: nil)
+        ) as? String
+        return WebPreviewSanitizer.parseVisiblePriceResult(from: payload)
     }
 
     func syncCookiesToSharedStorage() async throws {
@@ -287,6 +300,14 @@ private extension WKWebView {
                 } else {
                     continuation.resume(returning: result)
                 }
+            }
+        }
+    }
+
+    func snapshotImage() async -> UIImage? {
+        await withCheckedContinuation { continuation in
+            takeSnapshot(with: nil) { image, _ in
+                continuation.resume(returning: image)
             }
         }
     }

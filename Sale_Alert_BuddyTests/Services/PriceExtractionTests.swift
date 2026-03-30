@@ -663,7 +663,7 @@ struct PriceExtractionPipelineTests {
     }
 
     @Test func pipelineFailsOverToHTMLPattern() {
-        // No JSON-LD, no meta tags, no data attributes, falls through to HTML pattern
+        // No JSON-LD, no meta tags, no data attributes: visible DOM context should win.
         let html = """
         <html><body>
         <span class="price">£9.99</span>
@@ -673,7 +673,7 @@ struct PriceExtractionPipelineTests {
         let result = pipeline.extract(from: html)
         #expect(result != nil)
         #expect(result!.result.currency == "GBP")
-        #expect(result!.method == .htmlPattern)
+        #expect(result!.method == .htmlContext)
     }
 
     @Test func pipelineFailsOverToEmbeddedJSON() {

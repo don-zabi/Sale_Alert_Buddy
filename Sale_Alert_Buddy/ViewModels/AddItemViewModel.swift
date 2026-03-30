@@ -13,6 +13,13 @@ import WebKit
 @Observable
 final class AddItemViewModel {
 
+    enum PreviewPresentationMode: Equatable {
+        case idle
+        case loadingScreenshot
+        case screenshot
+        case liveWeb
+    }
+
     struct RegistrationReviewDialog: Equatable {
         enum Kind: Equatable {
             case detected
@@ -23,7 +30,7 @@ final class AddItemViewModel {
         let title: String
         let message: String
         /// When `true`, the alternative button label is "検出不可なため閉じる" (dismiss sheet).
-        /// When `false`, the label is "別の方法で確認" (trigger a silent background retry).
+        /// When `false`, the label is "別の方法で確認" (open the loaded-page verification flow).
         let isLastAttempt: Bool
 
         // Rich preview data — non-nil for `.detected` dialogs only.
@@ -35,6 +42,8 @@ final class AddItemViewModel {
         let previewURL: URL?
         /// Raw decimal value of the detected price; passed to JS to scroll/highlight it.
         let previewPriceDecimal: Decimal?
+        /// First attempt prefers a screenshot, but can fall back to the live sanitized preview.
+        let prefersScreenshot: Bool
     }
 
     // MARK: - Input State
@@ -62,10 +71,12 @@ final class AddItemViewModel {
     /// Screenshot captured from the product page on the 1st detection attempt.
     /// Shown in the review card in place of a live WebView to avoid confusing UI elements.
     var previewScreenshot: UIImage? = nil
+    var previewPresentationMode: PreviewPresentationMode = .idle
 
     // Whether the user has already consumed the first background retry.
     // The second attempt always shows "検出不可なため閉じる" regardless of outcome.
     private var isSecondAttempt: Bool = false
+    private var previewCaptureToken = UUID()
 
     private var preparedDraft: PreparedTrackingItemDraft?
 
@@ -164,7 +175,7 @@ final class AddItemViewModel {
 
         isSecondAttempt = false
         priceConfirmed = false
-        previewScreenshot = nil
+        resetPreviewState(cancelCapture: true)
         isRegistering = true
         errorMessage = nil
         reviewDialog = nil
@@ -175,16 +186,8 @@ final class AddItemViewModel {
                 context: context
             )
             preparedDraft = draft
-            reviewDialog = makeDetectedDialog(for: draft)
-            // Start capturing a screenshot of the price element for the review card.
-            // This runs concurrently so the dialog appears immediately.
-            Task { [weak self] in
-                guard let self else { return }
-                self.previewScreenshot = await PageSnapshotService.shared.capture(
-                    url: draft.finalURL,
-                    priceDecimal: draft.priceResult.price
-                )
-            }
+            reviewDialog = makeDetectedDialog(for: draft, prefersScreenshot: true)
+            beginPreviewCapture(for: draft)
         } catch let checkError as PriceCheckError {
             handlePreparationError(checkError)
         } catch {
@@ -235,42 +238,30 @@ final class AddItemViewModel {
         }
     }
 
-    /// Performs a silent background second attempt at price retrieval.
+    /// Moves the add-item flow into the stronger, loaded-page verification path.
     ///
-    /// Called when the user taps "別の方法で確認" on the detected-price dialog.
-    /// Unlike the old flow, this does NOT open the in-app browser; it simply
-    /// refetches the URL in the background and shows the result in a new dialog.
-    /// After this call the result dialog always shows "検出不可なため閉じる"
-    /// (no further retries are offered).
-    func retryInBackground(context: NSManagedObjectContext) async {
-        reviewDialog = nil
-        isSecondAttempt = true
-        previewScreenshot = nil   // 2nd attempt uses live WebView, no screenshot needed
-        isRegistering = true
-        errorMessage = nil
-
-        do {
-            let draft = try await checkService.prepareRegistration(
-                urlString: urlText.trimmingCharacters(in: .whitespacesAndNewlines),
-                context: context
-            )
-            preparedDraft = draft
-            // isSecondAttempt == true → isLastAttempt == true in the dialog
-            reviewDialog = makeDetectedDialog(for: draft)
-        } catch let checkError as PriceCheckError {
-            handlePreparationError(checkError)
-        } catch {
-            errorMessage = error.localizedDescription
+    /// Returns the URL that should be opened in the in-app browser. This second pass
+    /// is marked as the last attempt so the resulting dialog offers no further retry.
+    func beginAlternativeVerification() -> URL? {
+        let fallbackURL = URLNormalizer.normalize(urlText.trimmingCharacters(in: .whitespacesAndNewlines))
+            .flatMap(URL.init(string:))
+        let targetURL = reviewDialog?.previewURL ?? fallbackURL
+        guard let targetURL else {
+            errorMessage = PriceCheckError.invalidURL.errorDescription
+            return nil
         }
 
-        isRegistering = false
+        reviewDialog = nil
+        isSecondAttempt = true
+        errorMessage = nil
+        resetPreviewState(cancelCapture: true)
+        return targetURL
     }
 
     // MARK: - In-App Browser Capture (used by ItemListView for manual re-checks)
 
     func handleManualCapture(
-        html: String,
-        pageURL: URL,
+        capturedPage: InAppCapturedPage,
         context: NSManagedObjectContext
     ) async -> InAppPriceCaptureResponse {
         isRegistering = true
@@ -279,12 +270,22 @@ final class AddItemViewModel {
         do {
             let draft = try await checkService.prepareRegistrationFromLoadedPage(
                 originalUrlString: urlText.trimmingCharacters(in: .whitespacesAndNewlines),
-                pageHTML: html,
-                pageURL: pageURL,
-                context: context
+                pageHTML: capturedPage.html,
+                pageURL: capturedPage.url,
+                context: context,
+                visiblePriceResult: capturedPage.visiblePriceResult
             )
             preparedDraft = draft
-            reviewDialog = makeDetectedDialog(for: draft)
+            resetPreviewState(cancelCapture: true)
+            if let previewImage = capturedPage.previewImage,
+               !PreviewImageValidator.isLikelyBlank(previewImage) {
+                previewScreenshot = previewImage
+                previewPresentationMode = .screenshot
+                reviewDialog = makeDetectedDialog(for: draft, prefersScreenshot: true)
+            } else {
+                previewPresentationMode = .liveWeb
+                reviewDialog = makeDetectedDialog(for: draft, prefersScreenshot: false)
+            }
             return InAppPriceCaptureResponse(shouldDismiss: true, message: "")
         } catch PriceCheckError.accessBlocked {
             securityBlockMessage = String(
@@ -307,7 +308,10 @@ final class AddItemViewModel {
 
     // MARK: - Private Helpers
 
-    private func makeDetectedDialog(for draft: PreparedTrackingItemDraft) -> RegistrationReviewDialog {
+    private func makeDetectedDialog(
+        for draft: PreparedTrackingItemDraft,
+        prefersScreenshot: Bool
+    ) -> RegistrationReviewDialog {
         let priceText = NotificationService.formatPrice(
             draft.priceResult.price,
             currency: draft.priceResult.currency
@@ -330,14 +334,14 @@ final class AddItemViewModel {
             previewImageURL: draft.metadata.imageUrl,
             previewTitle: draft.metadata.title,
             previewPrice: priceText,
-            // 1st attempt → nil (review card shows screenshot captured by PageSnapshotService)
-            // 2nd attempt → actual URL (review card shows live WKWebView)
-            previewURL: isSecondAttempt ? draft.finalURL : nil,
-            previewPriceDecimal: draft.priceResult.price
+            previewURL: draft.finalURL,
+            previewPriceDecimal: draft.priceResult.price,
+            prefersScreenshot: prefersScreenshot
         )
     }
 
     private func handlePreparationError(_ error: PriceCheckError) {
+        resetPreviewState(cancelCapture: true)
         switch error {
         case .accessBlocked, .priceNotFound, .fetchFailed:
             // All failures → give-up dialog; no further retries offered.
@@ -353,10 +357,57 @@ final class AddItemViewModel {
                 previewTitle: nil,
                 previewPrice: nil,
                 previewURL: nil,
-                previewPriceDecimal: nil
+                previewPriceDecimal: nil,
+                prefersScreenshot: false
             )
         case .invalidURL, .duplicateURL:
             errorMessage = error.errorDescription
+        }
+    }
+
+    func clearPreviewState() {
+        resetPreviewState(cancelCapture: true)
+    }
+
+    private func beginPreviewCapture(for draft: PreparedTrackingItemDraft) {
+        let token = UUID()
+        previewCaptureToken = token
+        previewScreenshot = nil
+        previewPresentationMode = .loadingScreenshot
+
+        Task { [weak self] in
+            guard let self else { return }
+            let image = await PageSnapshotService.shared.capture(
+                url: draft.finalURL,
+                priceDecimal: draft.priceResult.price
+            )
+            guard self.previewCaptureToken == token else { return }
+            guard self.previewPresentationMode == .loadingScreenshot else { return }
+
+            if let image {
+                self.previewScreenshot = image
+                self.previewPresentationMode = .screenshot
+            } else {
+                self.previewPresentationMode = .liveWeb
+            }
+        }
+
+        Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: .seconds(2))
+            guard self.previewCaptureToken == token else { return }
+            guard self.previewPresentationMode == .loadingScreenshot else { return }
+            self.previewPresentationMode = .liveWeb
+            PageSnapshotService.shared.cancelCapture()
+        }
+    }
+
+    private func resetPreviewState(cancelCapture: Bool) {
+        previewCaptureToken = UUID()
+        previewScreenshot = nil
+        previewPresentationMode = .idle
+        if cancelCapture {
+            PageSnapshotService.shared.cancelCapture()
         }
     }
 }
