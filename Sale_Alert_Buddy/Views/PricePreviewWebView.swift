@@ -11,10 +11,15 @@ struct PricePreviewWebView: UIViewRepresentable {
     let url: URL
     /// Raw Decimal price used to locate the price element in the page DOM.
     let priceDecimal: Decimal?
+    let preferredAnchorPath: String?
     @Binding var isLoading: Bool
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(isLoading: $isLoading, priceDecimal: priceDecimal)
+        Coordinator(
+            isLoading: $isLoading,
+            priceDecimal: priceDecimal,
+            preferredAnchorPath: preferredAnchorPath
+        )
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -44,10 +49,12 @@ struct PricePreviewWebView: UIViewRepresentable {
 
         @Binding var isLoading: Bool
         let priceDecimal: Decimal?
+        let preferredAnchorPath: String?
 
-        init(isLoading: Binding<Bool>, priceDecimal: Decimal?) {
+        init(isLoading: Binding<Bool>, priceDecimal: Decimal?, preferredAnchorPath: String?) {
             _isLoading = isLoading
             self.priceDecimal = priceDecimal
+            self.preferredAnchorPath = preferredAnchorPath
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
@@ -89,7 +96,10 @@ struct PricePreviewWebView: UIViewRepresentable {
             let digitsOnly = priceDecimal.map {
                 ($0 as NSDecimalNumber).stringValue.filter(\.isNumber)
             }
-            let script = WebPreviewSanitizer.postLoadScript(priceDigits: digitsOnly)
+            let script = WebPreviewSanitizer.postLoadScript(
+                priceDigits: digitsOnly,
+                preferredAnchorPath: preferredAnchorPath
+            )
             for delay in [0.0, 0.35, 0.9, 1.6] {
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak webView] in
                     webView?.evaluateJavaScript(script, completionHandler: nil)

@@ -30,13 +30,14 @@ final class PageSnapshotService: NSObject {
     private var completion: ((UIImage?) -> Void)?
     private var timeoutTask: Task<Void, Never>?
     private var priceDigits: String = ""
+    private var preferredAnchorPath: String = ""
 
     // MARK: - Public
 
     /// Loads `url` in an invisible WKWebView, highlights the element containing
     /// `priceDecimal`, and returns a snapshot of the visible viewport.
     /// Returns `nil` on load failure, bot-block, or timeout.
-    func capture(url: URL, priceDecimal: Decimal) async -> UIImage? {
+    func capture(url: URL, priceDecimal: Decimal, preferredAnchorPath: String? = nil) async -> UIImage? {
         cancelCurrent()
 
         return await withCheckedContinuation { continuation in
@@ -48,6 +49,7 @@ final class PageSnapshotService: NSObject {
             priceDigits = (priceDecimal as NSDecimalNumber)
                 .stringValue
                 .filter(\.isNumber)
+            self.preferredAnchorPath = preferredAnchorPath ?? ""
             completion = { continuation.resume(returning: $0) }
 
             let config = WKWebViewConfiguration()
@@ -140,7 +142,10 @@ final class PageSnapshotService: NSObject {
 
     private func attemptHighlightAndCapture(_ webView: WKWebView, attempt: Int) {
         webView.evaluateJavaScript(
-            WebPreviewSanitizer.postLoadScript(priceDigits: priceDigits)
+            WebPreviewSanitizer.postLoadScript(
+                priceDigits: priceDigits,
+                preferredAnchorPath: preferredAnchorPath
+            )
         ) { [weak self] result, _ in
             guard let self, self.webView != nil else { return }
 

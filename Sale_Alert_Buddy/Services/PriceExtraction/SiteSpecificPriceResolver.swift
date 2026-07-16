@@ -10,11 +10,15 @@ protocol SiteSpecificPriceResolving {
 
 struct SiteSpecificPriceResolver: SiteSpecificPriceResolving, Sendable {
 
+    private let amazonResolver: AmazonPriceResolver
+    private let mercariResolver: MercariPriceResolver
     private let udemyResolver: UdemyCoursePriceResolver
     private let sheinResolver: SheinProductPriceResolver
     private let temuResolver: TemuSharePriceResolver
 
     nonisolated init(session: URLSession = HTMLFetcher.makeDefaultSession()) {
+        amazonResolver = AmazonPriceResolver()
+        mercariResolver = MercariPriceResolver()
         udemyResolver = UdemyCoursePriceResolver(session: session)
         sheinResolver = SheinProductPriceResolver(session: session)
         temuResolver = TemuSharePriceResolver()
@@ -25,6 +29,13 @@ struct SiteSpecificPriceResolver: SiteSpecificPriceResolving, Sendable {
         html: String,
         allowURLFallback: Bool
     ) async -> (result: PriceResult, method: ExtractMethod)? {
+        // Prioritised, deterministic resolvers for the fully-supported shops.
+        if let result = amazonResolver.resolve(for: url, html: html) {
+            return (result, result.extractMethod)
+        }
+        if let result = mercariResolver.resolve(for: url, html: html) {
+            return (result, result.extractMethod)
+        }
         if let result = await udemyResolver.resolve(for: url, html: html) {
             return (result, result.extractMethod)
         }

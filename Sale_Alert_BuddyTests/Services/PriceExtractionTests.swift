@@ -757,6 +757,49 @@ struct PriceExtractionPipelineTests {
         #expect(result!.method == .schemaOrg)
         #expect(result!.result.currency == "JPY")
     }
+
+    @Test func pipelineChoosesBuyboxAnchorWhenSameAmountAppearsMultipleTimes() {
+        let html = """
+        <html><body>
+        <h1>テスト商品</h1>
+        <section class="recommendation">
+            <span class="price">¥3,980</span>
+        </section>
+        <div class="buybox product-detail">
+            <span class="label">販売価格</span>
+            <span class="price">¥3,980</span>
+            <button>カートに入れる</button>
+        </div>
+        </body></html>
+        """
+
+        let pipeline = PriceExtractionPipeline()
+        let analysis = pipeline.analyze(from: html, origin: .rawHTML)
+
+        #expect(analysis != nil)
+        #expect(analysis?.bestCandidate?.candidate.amount == Decimal(3980))
+        #expect(analysis?.bestCandidate?.candidate.sectionType == .buybox)
+        #expect(analysis?.bestCandidate?.candidate.domPath.contains("div:nth-of-type") == true)
+    }
+
+    @Test func pipelineReturnsLowConfidenceForAuxiliaryOnlyPriceContexts() {
+        let html = """
+        <html><body>
+        <section class="recommendation">
+            <span>おすすめ商品</span>
+            <span class="price">¥2,000</span>
+        </section>
+        <div class="shipping-note">¥2,000以上で送料無料</div>
+        </body></html>
+        """
+
+        let pipeline = PriceExtractionPipeline()
+        let result = pipeline.extract(from: html)
+
+        #expect(result != nil)
+        #expect(result?.result.price == Decimal(2000))
+        #expect(result?.result.confidenceLevel == .low)
+    }
 }
 
 // MARK: - MetadataExtractor Tests

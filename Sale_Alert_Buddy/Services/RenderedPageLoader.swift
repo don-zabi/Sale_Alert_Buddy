@@ -11,6 +11,22 @@ struct RenderedPageSnapshot: Sendable {
     let html: String
     let finalURL: URL
     let visiblePriceResult: PriceResult?
+    let visiblePriceCandidates: [PriceCandidate]
+    let selectedPriceCandidate: PriceCandidate?
+
+    init(
+        html: String,
+        finalURL: URL,
+        visiblePriceResult: PriceResult? = nil,
+        visiblePriceCandidates: [PriceCandidate] = [],
+        selectedPriceCandidate: PriceCandidate? = nil
+    ) {
+        self.html = html
+        self.finalURL = finalURL
+        self.visiblePriceResult = visiblePriceResult
+        self.visiblePriceCandidates = visiblePriceCandidates
+        self.selectedPriceCandidate = selectedPriceCandidate
+    }
 }
 
 @MainActor
@@ -123,7 +139,18 @@ private final class LoadSession: NSObject, WKNavigationDelegate {
             WebPreviewSanitizer.visiblePriceProbeScript(priceDigits: nil)
         ) { [weak self] payload in
             guard let self else { return }
-            let visiblePrice = self.parsedVisiblePrice(from: payload)
+            let visibleCandidates = self.parsedVisibleCandidates(from: payload)
+            let visiblePrice = visibleCandidates.first.map {
+                PriceResult(
+                    price: $0.amount,
+                    currency: $0.currency,
+                    extractMethod: $0.extractMethod,
+                    confidence: $0.confidence,
+                    confidenceLevel: .medium,
+                    sourceType: $0.sourceType,
+                    anchor: $0.anchor
+                )
+            }
 
             self.webView?.asyncEvaluateJavaScript("document.documentElement.outerHTML") { [weak self] html in
                 guard let self else { return }
@@ -132,7 +159,8 @@ private final class LoadSession: NSObject, WKNavigationDelegate {
                 let snapshot = RenderedPageSnapshot(
                     html: html ?? "",
                     finalURL: finalURL,
-                    visiblePriceResult: visiblePrice
+                    visiblePriceResult: visiblePrice,
+                    visiblePriceCandidates: visibleCandidates
                 )
 
                 if snapshot.html.isEmpty && snapshot.visiblePriceResult == nil {
@@ -144,8 +172,8 @@ private final class LoadSession: NSObject, WKNavigationDelegate {
         }
     }
 
-    private func parsedVisiblePrice(from payload: String?) -> PriceResult? {
-        WebPreviewSanitizer.parseVisiblePriceResult(from: payload)
+    private func parsedVisibleCandidates(from payload: String?) -> [PriceCandidate] {
+        WebPreviewSanitizer.parseVisiblePriceCandidates(from: payload)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

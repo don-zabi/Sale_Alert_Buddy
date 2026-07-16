@@ -258,9 +258,14 @@ struct AddItemSheet: View {
     /// Inline WKWebView showing the actual product page with the price element highlighted.
     /// Purchase buttons and sticky CTAs are hidden before render; navigation stays read-only.
     @ViewBuilder
-    private func webPreview(url: URL, priceDecimal: Decimal?) -> some View {
+    private func webPreview(url: URL, priceDecimal: Decimal?, preferredAnchorPath: String?) -> some View {
         ZStack(alignment: .topTrailing) {
-            PricePreviewWebView(url: url, priceDecimal: priceDecimal, isLoading: $webViewLoading)
+            PricePreviewWebView(
+                url: url,
+                priceDecimal: priceDecimal,
+                preferredAnchorPath: preferredAnchorPath,
+                isLoading: $webViewLoading
+            )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
 
@@ -296,7 +301,11 @@ struct AddItemSheet: View {
         if dialog.prefersScreenshot {
             ZStack {
                 if let previewURL = dialog.previewURL {
-                    webPreview(url: previewURL, priceDecimal: dialog.previewPriceDecimal)
+                    webPreview(
+                        url: previewURL,
+                        priceDecimal: dialog.previewPriceDecimal,
+                        preferredAnchorPath: dialog.previewAnchorPath
+                    )
                         .allowsHitTesting(viewModel.previewPresentationMode == .liveWeb)
                         .accessibilityHidden(viewModel.previewPresentationMode != .liveWeb)
                 }
@@ -315,7 +324,11 @@ struct AddItemSheet: View {
                 }
             }
         } else if let previewURL = dialog.previewURL {
-            webPreview(url: previewURL, priceDecimal: dialog.previewPriceDecimal)
+            webPreview(
+                url: previewURL,
+                priceDecimal: dialog.previewPriceDecimal,
+                preferredAnchorPath: dialog.previewAnchorPath
+            )
         } else if let screenshot = viewModel.previewScreenshot {
             screenshotPreview(screenshot)
         } else {

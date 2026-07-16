@@ -16,7 +16,11 @@ struct PricePreviewWebViewTests {
     private func makeCoordinator() -> PricePreviewWebView.Coordinator {
         var loading = false
         let binding = Binding(get: { loading }, set: { loading = $0 })
-        return PricePreviewWebView.Coordinator(isLoading: binding, priceDecimal: Decimal(1980))
+        return PricePreviewWebView.Coordinator(
+            isLoading: binding,
+            priceDecimal: Decimal(1980),
+            preferredAnchorPath: nil
+        )
     }
 
     private func makeWebView() -> WKWebView {

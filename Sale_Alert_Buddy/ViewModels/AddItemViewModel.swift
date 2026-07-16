@@ -42,6 +42,8 @@ final class AddItemViewModel {
         let previewURL: URL?
         /// Raw decimal value of the detected price; passed to JS to scroll/highlight it.
         let previewPriceDecimal: Decimal?
+        /// Preferred DOM anchor path for the selected price node when available.
+        let previewAnchorPath: String?
         /// First attempt prefers a screenshot, but can fall back to the live sanitized preview.
         let prefersScreenshot: Bool
     }
@@ -273,7 +275,9 @@ final class AddItemViewModel {
                 pageHTML: capturedPage.html,
                 pageURL: capturedPage.url,
                 context: context,
-                visiblePriceResult: capturedPage.visiblePriceResult
+                visiblePriceResult: capturedPage.visiblePriceResult,
+                visiblePriceCandidates: capturedPage.visiblePriceCandidates,
+                selectedPriceCandidate: capturedPage.selectedPriceCandidate
             )
             preparedDraft = draft
             resetPreviewState(cancelCapture: true)
@@ -316,19 +320,21 @@ final class AddItemViewModel {
             draft.priceResult.price,
             currency: draft.priceResult.currency
         )
+        let requiresReview = draft.priceResult.confidenceLevel == .low
+        let title = String(
+            localized: requiresReview ? "addItem.review.detected.lowConfidenceTitle" : "addItem.review.detected.title",
+            defaultValue: requiresReview ? "価格候補を検出しました" : "価格を検出しました"
+        )
+        let messageFormat = String(
+            localized: requiresReview ? "addItem.review.detected.lowConfidenceMessage" : "addItem.review.detected.message",
+            defaultValue: requiresReview
+                ? "取得価格候補: %@\n\n自信度が低いため、表示価格と一致しているか確認してください。"
+                : "取得価格: %@\n\n正しく検出できていますか？"
+        )
         return RegistrationReviewDialog(
             kind: .detected,
-            title: String(
-                localized: "addItem.review.detected.title",
-                defaultValue: "価格を検出しました"
-            ),
-            message: String(
-                format: String(
-                    localized: "addItem.review.detected.message",
-                    defaultValue: "取得価格: %@\n\n正しく検出できていますか？"
-                ),
-                priceText
-            ),
+            title: title,
+            message: String(format: messageFormat, priceText),
             // After a second attempt the user can no longer retry
             isLastAttempt: isSecondAttempt,
             previewImageURL: draft.metadata.imageUrl,
@@ -336,6 +342,7 @@ final class AddItemViewModel {
             previewPrice: priceText,
             previewURL: draft.finalURL,
             previewPriceDecimal: draft.priceResult.price,
+            previewAnchorPath: draft.priceResult.anchor?.domPath,
             prefersScreenshot: prefersScreenshot
         )
     }
@@ -343,7 +350,7 @@ final class AddItemViewModel {
     private func handlePreparationError(_ error: PriceCheckError) {
         resetPreviewState(cancelCapture: true)
         switch error {
-        case .accessBlocked, .priceNotFound, .fetchFailed:
+        case .accessBlocked, .priceNotFound, .reviewRequired, .fetchFailed:
             // All failures → give-up dialog; no further retries offered.
             reviewDialog = RegistrationReviewDialog(
                 kind: .failed,
@@ -358,9 +365,10 @@ final class AddItemViewModel {
                 previewPrice: nil,
                 previewURL: nil,
                 previewPriceDecimal: nil,
+                previewAnchorPath: nil,
                 prefersScreenshot: false
             )
-        case .invalidURL, .duplicateURL:
+        case .invalidURL, .unsupportedSite, .duplicateURL:
             errorMessage = error.errorDescription
         }
     }
@@ -379,7 +387,8 @@ final class AddItemViewModel {
             guard let self else { return }
             let image = await PageSnapshotService.shared.capture(
                 url: draft.finalURL,
-                priceDecimal: draft.priceResult.price
+                priceDecimal: draft.priceResult.price,
+                preferredAnchorPath: draft.priceResult.anchor?.domPath
             )
             guard self.previewCaptureToken == token else { return }
             guard self.previewPresentationMode == .loadingScreenshot else { return }

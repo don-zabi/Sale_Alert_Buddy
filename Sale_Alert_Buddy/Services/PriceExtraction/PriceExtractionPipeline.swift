@@ -1,10 +1,10 @@
-// REQUIRES: SwiftSoup SPM package — add via Xcode > File > Add Package Dependencies > https://github.com/scinfu/SwiftSoup.git
 import Foundation
 import SwiftSoup
 
 struct PriceExtractionPipeline: Sendable {
 
     private let extractors: [any PriceExtractor]
+    private let scorer = VisiblePriceSignalScorer()
 
     nonisolated init() {
         extractors = [
@@ -17,103 +17,156 @@ struct PriceExtractionPipeline: Sendable {
         ]
     }
 
-    /// Parses the HTML string and runs each extractor.
-    /// Returns the strongest consensus candidate after validation.
     nonisolated func extract(from html: String) -> (result: PriceResult, method: ExtractMethod)? {
-        guard !html.isEmpty,
-              let document = try? SwiftSoup.parse(html) else {
+        guard let analysis = analyze(from: html, origin: .rawHTML),
+              let best = analysis.bestCandidate else {
             return nil
         }
 
-        let signalScorer = VisiblePriceSignalScorer(document: document)
-        let validCandidates = extractors.flatMap { extractor in
-            extractor.extract(from: document).filter { PriceValidator.validate($0) }
-        }
+        let result = makeResult(
+            from: best.candidate,
+            confidenceLevel: confidenceLevel(
+                for: best,
+                runnerUp: analysis.rankedCandidates.dropFirst().first
+            )
+        )
+        return (result, result.extractMethod)
+    }
 
-        guard !validCandidates.isEmpty else {
-            return nil
-        }
+    nonisolated func analyze(
+        from html: String,
+        origin: PriceCandidateOrigin,
+        additionalCandidates: [PriceCandidate] = [],
+        isProtectionPage: Bool = false
+    ) -> PriceSourceAnalysis? {
+        let meaningfulContent = hasMeaningfulContent(in: html)
 
-        let grouped = Dictionary(grouping: validCandidates) {
-            "\($0.currency.uppercased())|\($0.price)"
-        }
-
-        let rankedGroups = grouped.values.compactMap { group -> RankedCandidateGroup? in
-            guard let representative = group.max(by: { $0.confidence < $1.confidence }) else {
-                return nil
-            }
-
-            let uniqueMethods = Set(group.map(\.extractMethod))
-            let visibilityScore = signalScorer.score(for: representative)
-            let visibleMethodCount = uniqueMethods.filter(Self.isVisibleMethod).count
-            let structuredMethodCount = uniqueMethods.filter(Self.isStructuredMethod).count
-            let authoritativeMethodCount = uniqueMethods.filter(Self.isAuthoritativeMethod).count
-
-            var score = representative.confidence
-                + visibilityScore
-                + (Double(visibleMethodCount) * 0.16)
-                + (Double(structuredMethodCount) * 0.07)
-                + (Double(authoritativeMethodCount) * 0.18)
-                + (Double(group.count - uniqueMethods.count) * 0.02)
-
-            if visibleMethodCount > 0 && visibilityScore >= 0.22 {
-                score += 0.10
-            }
-            if visibleMethodCount == 0 && authoritativeMethodCount == 0 && visibilityScore <= 0.05 {
-                score -= 0.10
-            }
-
-            return RankedCandidateGroup(
-                representative: representative,
-                score: score,
-                visibleMethodCount: visibleMethodCount,
-                methodCount: uniqueMethods.count,
-                visibilityScore: visibilityScore
+        if html.isEmpty {
+            guard !additionalCandidates.isEmpty else { return nil }
+            let ranked = scorer.rank(additionalCandidates)
+            return PriceSourceAnalysis(
+                origin: origin,
+                candidates: additionalCandidates,
+                rankedCandidates: ranked,
+                bestCandidate: ranked.first,
+                isProtectionPage: isProtectionPage,
+                hasMeaningfulContent: meaningfulContent
             )
         }
 
-        guard let best = rankedGroups.max(by: { lhs, rhs in
-            if lhs.score != rhs.score { return lhs.score < rhs.score }
-            if lhs.visibilityScore != rhs.visibilityScore { return lhs.visibilityScore < rhs.visibilityScore }
-            if lhs.visibleMethodCount != rhs.visibleMethodCount { return lhs.visibleMethodCount < rhs.visibleMethodCount }
-            if lhs.methodCount != rhs.methodCount { return lhs.methodCount < rhs.methodCount }
-            return lhs.representative.confidence < rhs.representative.confidence
-        }) else {
-            return nil
+        guard let document = try? SwiftSoup.parse(html) else {
+            guard !additionalCandidates.isEmpty else { return nil }
+            let ranked = scorer.rank(additionalCandidates)
+            return PriceSourceAnalysis(
+                origin: origin,
+                candidates: additionalCandidates,
+                rankedCandidates: ranked,
+                bestCandidate: ranked.first,
+                isProtectionPage: isProtectionPage,
+                hasMeaningfulContent: meaningfulContent
+            )
         }
 
-        return (result: best.representative, method: best.representative.extractMethod)
+        let builder = PriceCandidateBuilder(document: document, origin: origin)
+        let extractedCandidates = extractors
+            .flatMap { extractor in
+                extractor.extract(from: document)
+                    .filter { PriceValidator.validate($0) }
+                    .flatMap { builder.expand(result: $0) }
+            }
+
+        let candidates = deduplicated(extractedCandidates + additionalCandidates)
+        guard !candidates.isEmpty else { return nil }
+
+        let ranked = scorer.rank(candidates)
+        return PriceSourceAnalysis(
+            origin: origin,
+            candidates: candidates,
+            rankedCandidates: ranked,
+            bestCandidate: ranked.first,
+            isProtectionPage: isProtectionPage,
+            hasMeaningfulContent: meaningfulContent
+        )
     }
-}
 
-private struct RankedCandidateGroup {
-    let representative: PriceResult
-    let score: Double
-    let visibleMethodCount: Int
-    let methodCount: Int
-    let visibilityScore: Double
-}
+    nonisolated func makeResult(
+        from candidate: PriceCandidate,
+        confidenceLevel: PriceConfidenceLevel
+    ) -> PriceResult {
+        PriceResult(
+            price: candidate.amount,
+            currency: candidate.currency,
+            extractMethod: candidate.extractMethod,
+            confidence: candidate.confidence,
+            confidenceLevel: confidenceLevel,
+            sourceType: candidate.sourceType,
+            anchor: candidate.anchor
+        )
+    }
 
-private extension PriceExtractionPipeline {
-    nonisolated static func isVisibleMethod(_ method: ExtractMethod) -> Bool {
-        switch method {
-        case .htmlContext, .htmlPattern, .dataAttribute:
+    private nonisolated func confidenceLevel(
+        for best: ScoredPriceCandidate,
+        runnerUp: ScoredPriceCandidate?
+    ) -> PriceConfidenceLevel {
+        let gap = best.score - (runnerUp?.score ?? -1)
+        let candidate = best.candidate
+        let missingPrimarySignal = !candidate.hasPrimarySignal && !candidate.hasAuthoritativeSource
+
+        if candidate.sourceType == .siteAPI {
+            return .high
+        }
+
+        if candidate.hasPrimarySignal &&
+            !candidate.hasSevereNegativeSignal &&
+            gap >= 0.18 &&
+            (candidate.isVisible || candidate.sectionType == .mainProduct || candidate.sectionType == .buybox) {
+            return .high
+        }
+
+        if candidate.hasAuthoritativeSource &&
+            !candidate.hasSevereNegativeSignal &&
+            gap >= 0.14 {
+            return .medium
+        }
+
+        if gap < 0.08 ||
+            candidate.hasSevereNegativeSignal ||
+            missingPrimarySignal ||
+            candidate.sameAmountNodeCount > 6 {
+            return .low
+        }
+
+        return .medium
+    }
+
+    private nonisolated func hasMeaningfulContent(in html: String) -> Bool {
+        let trimmed = html.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        if trimmed.count > 400 {
             return true
-        default:
-            return false
         }
-    }
-
-    nonisolated static func isStructuredMethod(_ method: ExtractMethod) -> Bool {
-        switch method {
-        case .schemaOrg, .metaTag, .embeddedJSON:
+        let lowered = trimmed.lowercased()
+        if lowered.contains("application/ld+json") ||
+            lowered.contains("\"pricecurrency\"") ||
+            lowered.contains("\"price\"") ||
+            lowered.contains("og:image") ||
+            lowered.contains("<title>") {
             return true
-        default:
-            return false
         }
+        return lowered.contains("<img") || lowered.contains("<main") || lowered.contains("<article") || lowered.contains("<section")
     }
 
-    nonisolated static func isAuthoritativeMethod(_ method: ExtractMethod) -> Bool {
-        method == .siteAPI
+    private nonisolated func deduplicated(_ candidates: [PriceCandidate]) -> [PriceCandidate] {
+        var seen = Set<String>()
+        var unique: [PriceCandidate] = []
+
+        for candidate in candidates {
+            let key = "\(candidate.amountKey)|\(candidate.anchorKey)|\(candidate.sourceType.rawValue)|\(candidate.origin.rawValue)"
+            if seen.insert(key).inserted {
+                unique.append(candidate)
+            }
+        }
+
+        return unique
     }
 }

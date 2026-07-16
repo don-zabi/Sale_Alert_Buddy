@@ -1,13 +1,16 @@
 import Foundation
 import CoreData
 import Observation
+import OSLog
 
 /// Errors thrown by PriceCheckService.registerItem.
 enum PriceCheckError: Error, LocalizedError {
     case invalidURL
+    case unsupportedSite
     case duplicateURL(existingItem: TrackingItem)
     case priceNotFound
     case accessBlocked
+    case reviewRequired
     case fetchFailed(underlying: Error)
 
     var errorDescription: String? {
@@ -17,6 +20,12 @@ enum PriceCheckError: Error, LocalizedError {
             return String(
                 localized: "priceCheckError.invalidURL",
                 defaultValue: "The URL is invalid or could not be normalized.",
+                locale: locale
+            )
+        case .unsupportedSite:
+            return String(
+                localized: "priceCheckError.unsupportedSite",
+                defaultValue: "This build only supports Amazon and Mercari. Please enter an Amazon or Mercari product URL.",
                 locale: locale
             )
         case .duplicateURL:
@@ -35,6 +44,12 @@ enum PriceCheckError: Error, LocalizedError {
             return String(
                 localized: "priceCheckError.accessBlocked",
                 defaultValue: "This site showed a verification or anti-bot page, so the app could not read the product price.",
+                locale: locale
+            )
+        case .reviewRequired:
+            return String(
+                localized: "priceCheckError.reviewRequired",
+                defaultValue: "Price candidates were found, but confidence was low. Please confirm the price manually.",
                 locale: locale
             )
         case .fetchFailed(let error):
@@ -73,6 +88,11 @@ struct ForegroundPriceCaptureResult: Sendable {
 @MainActor
 @Observable
 final class PriceCheckService {
+
+    private static let resolutionLogger = Logger(
+        subsystem: "SaleAlertBuddy",
+        category: "PriceResolution"
+    )
 
     // MARK: - Shared Instance
 
@@ -129,6 +149,9 @@ final class PriceCheckService {
         context: NSManagedObjectContext
     ) async throws -> PreparedTrackingItemDraft {
         let preparedURL = try prepareNormalizedURL(from: urlString)
+        guard SupportedShop.isSupported(url: preparedURL.url) else {
+            throw PriceCheckError.unsupportedSite
+        }
         try throwIfDuplicate(url: preparedURL.normalizedUrl, context: context)
         try? await throttler.waitIfNeeded(for: preparedURL.url.host ?? "")
 
@@ -175,11 +198,16 @@ final class PriceCheckService {
         pageHTML: String,
         pageURL: URL,
         context: NSManagedObjectContext,
-        visiblePriceResult: PriceResult? = nil
+        visiblePriceResult: PriceResult? = nil,
+        visiblePriceCandidates: [PriceCandidate] = [],
+        selectedPriceCandidate: PriceCandidate? = nil
     ) async throws -> PreparedTrackingItemDraft {
         let preparedURL = try prepareNormalizedURL(
             from: URLNormalizer.normalize(originalUrlString) ?? pageURL.absoluteString
         )
+        guard SupportedShop.isSupported(url: pageURL) || SupportedShop.isSupported(url: preparedURL.url) else {
+            throw PriceCheckError.unsupportedSite
+        }
         try throwIfDuplicate(url: preparedURL.normalizedUrl, context: context)
 
         do {
@@ -187,7 +215,9 @@ final class PriceCheckService {
                 pageHTML: pageHTML,
                 pageURL: pageURL,
                 preferRenderedVisiblePrice: true,
-                visiblePriceResult: visiblePriceResult
+                visiblePriceResult: visiblePriceResult,
+                visiblePriceCandidates: visiblePriceCandidates,
+                selectedPriceCandidate: selectedPriceCandidate
             )
             return makeDraft(
                 originalUrlString: originalUrlString,
@@ -244,13 +274,20 @@ final class PriceCheckService {
         pageHTML: String,
         pageURL: URL,
         context: NSManagedObjectContext,
-        visiblePriceResult: PriceResult? = nil
+        visiblePriceResult: PriceResult? = nil,
+        visiblePriceCandidates: [PriceCandidate] = [],
+        selectedPriceCandidate: PriceCandidate? = nil
     ) async throws -> ForegroundPriceCaptureResult {
         let resolvedPage = try await resolveLoadedPage(
             pageHTML: pageHTML,
             pageURL: pageURL,
-            visiblePriceResult: visiblePriceResult
+            visiblePriceResult: visiblePriceResult,
+            visiblePriceCandidates: visiblePriceCandidates,
+            selectedPriceCandidate: selectedPriceCandidate
         )
+        guard !requiresReview(for: resolvedPage.priceResult) else {
+            throw PriceCheckError.reviewRequired
+        }
         await applyResolvedPrice(
             item: item,
             domain: item.domain,
@@ -353,6 +390,19 @@ final class PriceCheckService {
                 allowURLFallback: false
             )
 
+            if requiresReview(for: resolvedPage.priceResult) {
+                await handleExtractionFailure(
+                    item: item,
+                    domain: domain,
+                    context: context,
+                    durationMs: fetchDurationMs,
+                    httpStatus: fetchHTTPStatus,
+                    errorType: .extractionFailed,
+                    note: lowConfidenceNote(for: resolvedPage.priceResult)
+                )
+                return
+            }
+
             await applyResolvedPrice(
                 item: item,
                 domain: domain,
@@ -365,9 +415,9 @@ final class PriceCheckService {
             switch checkError {
             case .accessBlocked:
                 errorType = .accessBlocked
-            case .priceNotFound:
+            case .priceNotFound, .reviewRequired:
                 errorType = .extractionFailed
-            case .invalidURL, .duplicateURL:
+            case .invalidURL, .duplicateURL, .unsupportedSite:
                 errorType = .extractionFailed
             case .fetchFailed:
                 errorType = .network
@@ -500,7 +550,8 @@ final class PriceCheckService {
         context: NSManagedObjectContext,
         durationMs: Int32,
         httpStatus: Int,
-        errorType: FetchErrorType = .extractionFailed
+        errorType: FetchErrorType = .extractionFailed,
+        note: String? = nil
     ) async {
         item.failCountConsecutive += 1
         item.itemLastErrorType = errorType
@@ -518,6 +569,7 @@ final class PriceCheckService {
             httpStatus: Int16(httpStatus),
             errorType: errorType,
             durationMs: durationMs,
+            note: note,
             context: context
         )
         item.addFetchLogAndRotate(log, context: context)
@@ -730,13 +782,17 @@ final class PriceCheckService {
         pageHTML: String,
         pageURL: URL,
         preferRenderedVisiblePrice: Bool = false,
-        visiblePriceResult: PriceResult? = nil
+        visiblePriceResult: PriceResult? = nil,
+        visiblePriceCandidates: [PriceCandidate] = [],
+        selectedPriceCandidate: PriceCandidate? = nil
     ) async throws -> ResolvedPagePrice {
         let snapshotError: PriceCheckError?
         let capturedSnapshot = RenderedPageSnapshot(
             html: pageHTML,
             finalURL: pageURL,
-            visiblePriceResult: visiblePriceResult
+            visiblePriceResult: visiblePriceResult,
+            visiblePriceCandidates: visiblePriceCandidates,
+            selectedPriceCandidate: selectedPriceCandidate
         )
 
         do {
@@ -785,36 +841,27 @@ final class PriceCheckService {
         renderedSnapshot: RenderedPageSnapshot? = nil,
         preferRenderedVisiblePrice: Bool = false
     ) async throws -> ResolvedPagePrice {
-        let initialResolvedPrice: (result: PriceResult, method: ExtractMethod)?
-        let initialError: PriceCheckError?
-
-        do {
-            initialResolvedPrice = try await resolvePriceOrThrow(
-                from: html,
-                requestURL: requestURL,
-                allowURLFallback: allowURLFallback
-            )
-            initialError = nil
-        } catch let error as PriceCheckError {
-            initialResolvedPrice = nil
-            initialError = error
-        } catch {
-            initialResolvedPrice = nil
-            initialError = nil
-        }
-
-        let requiresRenderedFallback: Bool
-        switch initialError {
-        case .accessBlocked, .priceNotFound:
-            requiresRenderedFallback = true
-        case .invalidURL, .duplicateURL, .fetchFailed, nil:
-            requiresRenderedFallback = false
-        }
+        let rawSource = await analyzePriceSource(
+            from: html,
+            requestURL: requestURL,
+            allowURLFallback: allowURLFallback,
+            origin: .rawHTML
+        )
+        let rawBestCandidate = rawSource.analysis?.bestCandidate?.candidate
+        let rawHasMeaningfulContent = rawSource.analysis?.hasMeaningfulContent ?? false
+        let rawCandidateNeedsStrongerSignals =
+            (rawBestCandidate?.hasPrimarySignal != true) &&
+            (rawBestCandidate?.hasAuthoritativeSource != true)
+        let rawNeedsRenderedConfirmation =
+            rawBestCandidate == nil ||
+            rawSource.isProtectionPage ||
+            (!rawHasMeaningfulContent && rawBestCandidate?.hasAuthoritativeSource != true) ||
+            rawBestCandidate?.hasSevereNegativeSignal == true ||
+            rawCandidateNeedsStrongerSignals
 
         let shouldAttemptRenderedConfirmation =
             renderedSnapshot != nil ||
-            requiresRenderedFallback ||
-            (preferRenderedVisiblePrice && initialResolvedPrice?.method != .siteAPI)
+            rawNeedsRenderedConfirmation
 
         let liveSnapshot: RenderedPageSnapshot?
         if shouldAttemptRenderedConfirmation {
@@ -827,45 +874,501 @@ final class PriceCheckService {
             liveSnapshot = nil
         }
 
-        var resolvedPrice = initialResolvedPrice
         var metadataHTML = html
         var finalURL = requestURL
+        var renderedAnalysis: PriceSourceAnalysis?
+        let preferredRenderedCandidate = liveSnapshot?.selectedPriceCandidate
 
         if let liveSnapshot {
             if !liveSnapshot.html.isEmpty {
                 metadataHTML = liveSnapshot.html
-                finalURL = liveSnapshot.finalURL
             }
-
-            if let renderedVisiblePrice = liveSnapshot.visiblePriceResult {
-                if let initialResolvedPrice,
-                   shouldUseRenderedVisiblePrice(renderedVisiblePrice, over: initialResolvedPrice) {
-                    resolvedPrice = (result: renderedVisiblePrice, method: renderedVisiblePrice.extractMethod)
-                } else if resolvedPrice == nil {
-                    resolvedPrice = (result: renderedVisiblePrice, method: renderedVisiblePrice.extractMethod)
-                }
+            finalURL = liveSnapshot.finalURL
+            var renderedCandidates = mergedRenderedCandidates(from: liveSnapshot)
+            // Re-run the deterministic site resolvers against the hydrated DOM so
+            // SPA shops (e.g. Mercari) that expose no price in raw HTML still get an
+            // authoritative candidate from the rendered page.
+            if !liveSnapshot.html.isEmpty,
+               let renderedSiteSpecific = await sitePriceResolver.resolve(
+                   for: finalURL,
+                   html: liveSnapshot.html,
+                   allowURLFallback: false
+               ) {
+                renderedCandidates.append(
+                    PriceCandidateFactory.siteAPICandidate(
+                        from: renderedSiteSpecific.result,
+                        origin: .siteAPI
+                    )
+                )
             }
-
-            if resolvedPrice == nil,
-               let renderedResolvedPrice = try await resolveRenderedSnapshotPrice(liveSnapshot) {
-                resolvedPrice = renderedResolvedPrice
-            }
+            renderedAnalysis = pipeline.analyze(
+                from: liveSnapshot.html,
+                origin: .renderedHTML,
+                additionalCandidates: renderedCandidates,
+                isProtectionPage: !liveSnapshot.html.isEmpty && ProtectionPageDetector.isProtectionPage(liveSnapshot.html, url: liveSnapshot.finalURL)
+            )
         }
 
-        guard let resolvedPrice else {
-            throw initialError ?? PriceCheckError.priceNotFound
+        guard let report = resolvePriceReport(
+            rawSource: rawSource,
+            renderedAnalysis: renderedAnalysis,
+            preferRenderedVisiblePrice: preferRenderedVisiblePrice,
+            requestURL: requestURL,
+            preferredRenderedCandidate: preferredRenderedCandidate
+        ) else {
+            throw rawSource.error ?? PriceCheckError.priceNotFound
         }
+
+        logResolution(report, requestURL: requestURL)
 
         let metadata = metadataExtractor.extract(from: metadataHTML, requestUrl: finalURL)
         return ResolvedPagePrice(
-            priceResult: resolvedPrice.result,
-            extractMethod: resolvedPrice.method,
+            priceResult: report.result,
+            extractMethod: report.result.extractMethod,
             finalURL: finalURL,
             resolvedUrlString: metadata.resolvedUrl ?? finalURL.absoluteString,
             metadata: metadata,
             httpStatus: httpStatus,
             durationMs: durationMs
         )
+    }
+
+    private func analyzePriceSource(
+        from html: String,
+        requestURL: URL,
+        allowURLFallback: Bool,
+        origin: PriceCandidateOrigin
+    ) async -> SourceEvaluation {
+        let siteSpecific = await sitePriceResolver.resolve(
+            for: requestURL,
+            html: html,
+            allowURLFallback: allowURLFallback
+        )
+        let isProtectionPage = ProtectionPageDetector.isProtectionPage(html, url: requestURL)
+
+        var additionalCandidates: [PriceCandidate] = []
+        if let siteSpecific {
+            additionalCandidates.append(
+                PriceCandidateFactory.siteAPICandidate(
+                    from: siteSpecific.result,
+                    origin: .siteAPI
+                )
+            )
+        }
+
+        let analysis = pipeline.analyze(
+            from: html,
+            origin: origin,
+            additionalCandidates: additionalCandidates,
+            isProtectionPage: isProtectionPage
+        )
+
+        let error: PriceCheckError?
+        if analysis?.bestCandidate != nil {
+            error = nil
+        } else if isProtectionPage {
+            error = .accessBlocked
+        } else {
+            error = .priceNotFound
+        }
+
+        return SourceEvaluation(
+            analysis: analysis,
+            error: error,
+            isProtectionPage: isProtectionPage
+        )
+    }
+
+    private func resolvePriceReport(
+        rawSource: SourceEvaluation,
+        renderedAnalysis: PriceSourceAnalysis?,
+        preferRenderedVisiblePrice: Bool,
+        requestURL: URL,
+        preferredRenderedCandidate: PriceCandidate?
+    ) -> PriceResolutionReport? {
+        let rawBest = rawSource.analysis?.bestCandidate
+        let renderedBest = renderedAnalysis?.bestCandidate
+
+        var combinedCandidates: [ScoredPriceCandidate] = []
+        combinedCandidates.append(contentsOf: (rawSource.analysis?.rankedCandidates ?? []).map {
+            applyResolverBonus(
+                to: $0,
+                rawSource: rawSource,
+                renderedAnalysis: renderedAnalysis,
+                preferRenderedVisiblePrice: preferRenderedVisiblePrice,
+                preferredRenderedCandidate: preferredRenderedCandidate
+            )
+        })
+        combinedCandidates.append(contentsOf: (renderedAnalysis?.rankedCandidates ?? []).map {
+            applyResolverBonus(
+                to: $0,
+                rawSource: rawSource,
+                renderedAnalysis: renderedAnalysis,
+                preferRenderedVisiblePrice: preferRenderedVisiblePrice,
+                preferredRenderedCandidate: preferredRenderedCandidate
+            )
+        })
+
+        combinedCandidates.sort { lhs, rhs in
+            if lhs.score != rhs.score {
+                return lhs.score > rhs.score
+            }
+            if lhs.anchorScore != rhs.anchorScore {
+                return lhs.anchorScore > rhs.anchorScore
+            }
+            return lhs.candidate.anchorKey < rhs.candidate.anchorKey
+        }
+
+        guard let finalCandidate = combinedCandidates.first else {
+            return nil
+        }
+
+        let runnerUp = combinedCandidates.dropFirst().first {
+            $0.candidate.anchorKey != finalCandidate.candidate.anchorKey ||
+            $0.candidate.amountKey != finalCandidate.candidate.amountKey
+        }
+
+        let comparisonReasons = comparisonReasons(
+            rawBest: rawBest,
+            renderedBest: renderedBest,
+            finalCandidate: finalCandidate,
+            rawSource: rawSource,
+            requestURL: requestURL,
+            preferredRenderedCandidate: preferredRenderedCandidate
+        )
+        let confidenceDecision = confidenceDecision(
+            finalCandidate: finalCandidate,
+            runnerUp: runnerUp,
+            rawBest: rawBest,
+            renderedBest: renderedBest,
+            rawSource: rawSource,
+            preferredRenderedCandidate: preferredRenderedCandidate
+        )
+
+        let result = pipeline.makeResult(
+            from: finalCandidate.candidate,
+            confidenceLevel: confidenceDecision.level
+        )
+
+        return PriceResolutionReport(
+            result: result,
+            finalCandidate: finalCandidate,
+            rawAnalysis: rawSource.analysis,
+            renderedAnalysis: renderedAnalysis,
+            combinedCandidates: Array(combinedCandidates.prefix(10)),
+            comparisonReasons: comparisonReasons,
+            confidenceReasons: confidenceDecision.reasons
+        )
+    }
+
+    private func applyResolverBonus(
+        to ranked: ScoredPriceCandidate,
+        rawSource: SourceEvaluation,
+        renderedAnalysis: PriceSourceAnalysis?,
+        preferRenderedVisiblePrice: Bool,
+        preferredRenderedCandidate: PriceCandidate?
+    ) -> ScoredPriceCandidate {
+        var score = ranked.score
+        var adoptionReasons = ranked.adoptionReasons
+        var rejectionReasons = ranked.rejectionReasons
+        let candidate = ranked.candidate
+        let rawBest = rawSource.analysis?.bestCandidate
+        let renderedBest = renderedAnalysis?.bestCandidate
+        let bestRenderedVisible = renderedAnalysis?.rankedCandidates.first {
+            $0.candidate.sourceType == .renderedVisible
+        }
+
+        if candidate.sourceType == .siteAPI {
+            score += 0.40
+            adoptionReasons.append("site-api-authoritative")
+        }
+
+        if let preferredRenderedCandidate,
+           candidatesMatch(candidate, preferredRenderedCandidate) {
+            score += 1.35
+            adoptionReasons.append("user-selected")
+        }
+
+        if (rawBest == nil || rawSource.isProtectionPage || !(rawSource.analysis?.hasMeaningfulContent ?? false)) && candidate.origin.isRendered {
+            score += 0.26
+            adoptionReasons.append("render-fallback")
+        }
+
+        if candidate.origin.isRendered && candidate.isVisible && candidate.hasPrimarySignal {
+            score += 0.12
+            adoptionReasons.append("render-primary-signal")
+        }
+
+        if candidate.origin == .renderedDOM && candidate.isAboveTheFold {
+            score += 0.08
+            adoptionReasons.append("render-above-fold")
+        }
+
+        if preferRenderedVisiblePrice && candidate.origin.isRendered {
+            score += candidate.isVisible ? 0.18 : 0.08
+            adoptionReasons.append("prefer-rendered")
+        }
+
+        if preferRenderedVisiblePrice && candidate.sourceType == .renderedVisible {
+            score += candidate.isVisible ? 0.26 : 0.12
+            adoptionReasons.append("prefer-rendered-visible")
+        }
+
+        if preferRenderedVisiblePrice,
+           let bestRenderedVisible,
+           candidate.sourceType == .renderedVisible,
+           candidate.amountKey == bestRenderedVisible.candidate.amountKey {
+            score += candidate.isVisible ? 0.34 : 0.18
+            adoptionReasons.append("prefer-captured-visible")
+        }
+
+        if preferRenderedVisiblePrice,
+           candidate.origin == .rawHTML,
+           bestRenderedVisible?.candidate.isVisible == true {
+            score -= 0.10
+            rejectionReasons.append("prefer-rendered-over-raw")
+        }
+
+        if let rawBest,
+           candidate.origin.isRendered,
+           candidate.amountKey != rawBest.candidate.amountKey,
+           (rawBest.candidate.hasSevereNegativeSignal || !rawBest.candidate.hasPrimarySignal) {
+            score += 0.18
+            adoptionReasons.append("render-stronger-than-raw")
+        }
+
+        if let rawBest,
+           let bestRenderedVisible,
+           candidate.sourceType == .renderedVisible,
+           candidate.amountKey == bestRenderedVisible.candidate.amountKey,
+           rawBest.candidate.amountKey != bestRenderedVisible.candidate.amountKey {
+            score += 0.18
+            adoptionReasons.append("render-visible-mismatch-wins")
+        }
+
+        if let renderedBest,
+           candidate.origin == .rawHTML,
+           renderedBest.candidate.hasPrimarySignal,
+           renderedBest.candidate.isVisible,
+           !candidate.hasPrimarySignal {
+            score -= 0.12
+            rejectionReasons.append("weaker-than-render")
+        }
+
+        if let bestRenderedVisible,
+           candidate.origin == .rawHTML,
+           candidate.amountKey != bestRenderedVisible.candidate.amountKey,
+           bestRenderedVisible.candidate.isVisible {
+            score -= 0.12
+            rejectionReasons.append("mismatch-visible-render")
+        }
+
+        if let rawBest,
+           let renderedBest,
+           rawBest.candidate.amountKey == renderedBest.candidate.amountKey,
+           candidate.amountKey == rawBest.candidate.amountKey {
+            score += 0.18
+            adoptionReasons.append("raw-render-agree")
+        }
+
+        if rawSource.isProtectionPage && candidate.origin == .rawHTML {
+            score -= 0.18
+            rejectionReasons.append("raw-protection-page")
+        }
+
+        if let preferredRenderedCandidate,
+           candidate.origin == .rawHTML,
+           !candidatesMatch(candidate, preferredRenderedCandidate) {
+            score -= 0.18
+            rejectionReasons.append("conflicts-with-user-selection")
+        }
+
+        return ScoredPriceCandidate(
+            candidate: candidate,
+            score: score,
+            anchorScore: ranked.anchorScore,
+            adoptionReasons: adoptionReasons,
+            rejectionReasons: rejectionReasons
+        )
+    }
+
+    private func comparisonReasons(
+        rawBest: ScoredPriceCandidate?,
+        renderedBest: ScoredPriceCandidate?,
+        finalCandidate: ScoredPriceCandidate,
+        rawSource: SourceEvaluation,
+        requestURL: URL,
+        preferredRenderedCandidate: PriceCandidate?
+    ) -> [String] {
+        var reasons: [String] = []
+
+        if rawSource.isProtectionPage {
+            reasons.append("raw detected protection page")
+        }
+        if rawBest == nil {
+            reasons.append("raw had no candidate")
+        }
+        if let rawBest, rawBest.candidate.hasSevereNegativeSignal {
+            reasons.append("raw top candidate looked auxiliary")
+        }
+        if let renderedBest, renderedBest.candidate.hasPrimarySignal && renderedBest.candidate.isVisible {
+            reasons.append("rendered had visible primary candidate")
+        }
+        if let rawBest, let renderedBest, rawBest.candidate.amountKey != renderedBest.candidate.amountKey {
+            reasons.append("raw/render mismatch")
+        }
+        if let preferredRenderedCandidate,
+           candidatesMatch(finalCandidate.candidate, preferredRenderedCandidate) {
+            reasons.append("user selected rendered candidate")
+        }
+        reasons.append("selected \(finalCandidate.candidate.origin.debugName):\(finalCandidate.candidate.sourceType.debugName)")
+        reasons.append("url \(requestURL.absoluteString)")
+        return reasons
+    }
+
+    private func confidenceDecision(
+        finalCandidate: ScoredPriceCandidate,
+        runnerUp: ScoredPriceCandidate?,
+        rawBest: ScoredPriceCandidate?,
+        renderedBest: ScoredPriceCandidate?,
+        rawSource: SourceEvaluation,
+        preferredRenderedCandidate: PriceCandidate?
+    ) -> (level: PriceConfidenceLevel, reasons: [String]) {
+        var reasons: [String] = []
+        let gap = finalCandidate.score - (runnerUp?.score ?? (finalCandidate.score - 1))
+        let rawRenderMismatch = rawBest != nil && renderedBest != nil && rawBest?.candidate.amountKey != renderedBest?.candidate.amountKey
+        let rawRenderAgree = rawBest != nil && renderedBest != nil && rawBest?.candidate.amountKey == renderedBest?.candidate.amountKey
+        let candidate = finalCandidate.candidate
+        let missingPrimarySignal = !candidate.hasPrimarySignal && !candidate.hasAuthoritativeSource
+
+        if candidate.sourceType == .siteAPI {
+            reasons.append("site API candidate")
+            return (.high, reasons)
+        }
+
+        if let preferredRenderedCandidate,
+           candidatesMatch(candidate, preferredRenderedCandidate) {
+            reasons.append("user-selected candidate")
+            return (.high, reasons)
+        }
+
+        if rawRenderAgree {
+            reasons.append("raw/render agree")
+        }
+
+        if rawRenderMismatch {
+            reasons.append("raw/render mismatch")
+        }
+
+        if gap < 0.08 {
+            reasons.append("top score gap is small")
+        }
+        if candidate.hasSevereNegativeSignal {
+            reasons.append("candidate still has auxiliary-price context")
+        }
+        if missingPrimarySignal {
+            reasons.append("missing title/buybox primary signal")
+        }
+        if candidate.sameAmountNodeCount > 6 {
+            reasons.append("too many same-amount anchors")
+        }
+        if rawSource.isProtectionPage || !(rawSource.analysis?.hasMeaningfulContent ?? true) {
+            reasons.append("raw HTML was weak")
+        }
+
+        if rawRenderAgree &&
+            gap >= 0.18 &&
+            candidate.hasPrimarySignal &&
+            !candidate.hasSevereNegativeSignal &&
+            (candidate.isVisible && candidate.isAboveTheFold) {
+            return (.high, reasons)
+        }
+
+        if candidate.hasAuthoritativeSource &&
+            !candidate.hasSevereNegativeSignal &&
+            !rawRenderMismatch &&
+            gap >= 0.14 {
+            return (.medium, reasons)
+        }
+
+        if gap < 0.08 ||
+            rawRenderMismatch ||
+            candidate.hasSevereNegativeSignal ||
+            missingPrimarySignal ||
+            candidate.sameAmountNodeCount > 6 {
+            return (.low, reasons)
+        }
+
+        return (.medium, reasons)
+    }
+
+    private func logResolution(
+        _ report: PriceResolutionReport,
+        requestURL: URL
+    ) {
+        let rawSummary = summarizeCandidates(report.rawAnalysis?.topCandidates ?? [])
+        let renderedSummary = summarizeCandidates(report.renderedAnalysis?.topCandidates ?? [])
+        let combinedSummary = summarizeCandidates(Array(report.combinedCandidates.prefix(5)))
+        let final = report.finalCandidate
+
+        Self.resolutionLogger.debug("Price resolution raw top candidates for \(requestURL.absoluteString, privacy: .public): \(rawSummary, privacy: .public)")
+        Self.resolutionLogger.debug("Price resolution rendered top candidates for \(requestURL.absoluteString, privacy: .public): \(renderedSummary, privacy: .public)")
+        Self.resolutionLogger.debug("Price resolution final candidates for \(requestURL.absoluteString, privacy: .public): \(combinedSummary, privacy: .public)")
+        Self.resolutionLogger.debug("Price resolution selected \(final.candidate.amountKey, privacy: .public) score=\(final.score, privacy: .public) confidence=\(report.result.confidenceLevel.rawValue, privacy: .public) compare=\(report.comparisonReasons.joined(separator: " | "), privacy: .public) lowConfidenceReasons=\(report.confidenceReasons.joined(separator: " | "), privacy: .public)")
+    }
+
+    private func mergedRenderedCandidates(from snapshot: RenderedPageSnapshot) -> [PriceCandidate] {
+        var merged: [PriceCandidate] = []
+        var seen = Set<String>()
+
+        func append(_ candidate: PriceCandidate) {
+            let key = "\(candidate.amountKey)|\(candidate.anchorKey)"
+            guard seen.insert(key).inserted else { return }
+            merged.append(candidate)
+        }
+
+        if let selected = snapshot.selectedPriceCandidate {
+            append(selected)
+        }
+
+        if !snapshot.visiblePriceCandidates.isEmpty {
+            for candidate in snapshot.visiblePriceCandidates {
+                append(candidate)
+            }
+        } else if let visiblePriceResult = snapshot.visiblePriceResult {
+            append(PriceCandidateFactory.candidate(from: visiblePriceResult, origin: .renderedDOM))
+        }
+
+        return merged
+    }
+
+    private func candidatesMatch(_ lhs: PriceCandidate, _ rhs: PriceCandidate) -> Bool {
+        lhs.amountKey == rhs.amountKey && lhs.anchorKey == rhs.anchorKey
+    }
+
+    private func summarizeCandidates(_ candidates: [ScoredPriceCandidate]) -> String {
+        guard !candidates.isEmpty else { return "none" }
+        return candidates.enumerated().map { index, scored in
+            let candidate = scored.candidate
+            let amount = NSDecimalNumber(decimal: candidate.amount).stringValue
+            let reasons = scored.adoptionReasons.joined(separator: ",")
+            let rejections = scored.rejectionReasons.joined(separator: ",")
+            return "#\(index + 1) amount=\(amount) \(candidate.currency) source=\(candidate.sourceType.debugName) origin=\(candidate.origin.debugName) score=\(String(format: "%.3f", scored.score)) conf=\(String(format: "%.3f", candidate.confidence)) text=\(candidate.rawText) before=\(candidate.contextBefore) after=\(candidate.contextAfter) section=\(candidate.sectionType.rawValue) positive=\(candidate.positiveContextFlags.joined(separator: ",")) negative=\(candidate.negativeContextFlags.joined(separator: ",")) distanceToTitle=\(display(candidate.distanceToTitle)) distanceToBuy=\(display(candidate.distanceToBuyButton)) aboveFold=\(candidate.isAboveTheFold) visible=\(candidate.isVisible) ancestors=\(candidate.ancestorTokens.joined(separator: ",")) adopt=\(reasons) reject=\(rejections)"
+        }.joined(separator: " || ")
+    }
+
+    private func display(_ value: Double?) -> String {
+        guard let value else { return "nil" }
+        return String(format: "%.1f", value)
+    }
+
+    private func requiresReview(for result: PriceResult) -> Bool {
+        result.confidenceLevel == .low
+    }
+
+    private func lowConfidenceNote(for result: PriceResult) -> String {
+        let priceString = NSDecimalNumber(decimal: result.price).stringValue
+        return "low-confidence;price=\(priceString);currency=\(result.currency);method=\(result.extractMethod.rawValue)"
     }
 
     private func preferredTitle(customTitle: String?, extractedTitle: String?) -> String? {
@@ -940,6 +1443,12 @@ private struct ResolvedPagePrice: Sendable {
     let metadata: PageMetadata
     let httpStatus: Int
     let durationMs: Int32
+}
+
+private struct SourceEvaluation {
+    let analysis: PriceSourceAnalysis?
+    let error: PriceCheckError?
+    let isProtectionPage: Bool
 }
 
 // MARK: - CompletionCounter

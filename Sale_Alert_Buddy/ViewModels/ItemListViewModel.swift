@@ -90,7 +90,9 @@ final class ItemListViewModel {
                 pageHTML: capturedPage.html,
                 pageURL: capturedPage.url,
                 context: context,
-                visiblePriceResult: capturedPage.visiblePriceResult
+                visiblePriceResult: capturedPage.visiblePriceResult,
+                visiblePriceCandidates: capturedPage.visiblePriceCandidates,
+                selectedPriceCandidate: capturedPage.selectedPriceCandidate
             )
             let priceText = NotificationService.formatPrice(
                 result.priceResult.price,
